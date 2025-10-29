@@ -16,7 +16,7 @@ dim = 2
 courant_number = 0.2
 flux_alpha = 1.0
 start_time = 0
-final_time = 8
+final_time = 1
 output_tick = 0.1
 mesh_type = "cartesian"
 periodic = True
@@ -27,8 +27,8 @@ precontioner_type = "svd"
 flux = "upwind"
 
 # Hyperparameters grid
-Nx = 20
-Ny = 20
+Nx = 2
+Ny = 1
 Lx = 1.0
 Ly = 1.0
 dx = Lx / Nx
@@ -41,7 +41,7 @@ Nq = fe_degree + 1
 # Hyperparameters time integration
 explicit = True
 rk = 1
-h = 0.01
+h = 0.1
 
 # exact solution at time = 0
 def initial_solution(x1, x2):
@@ -80,7 +80,21 @@ class CellWiseOperator:
 
     self.wts1D = np.zeros((Nq, Nq))
     for i in range(Nq):
-       self.wts1D[i, i] = self.qwts[i]
+        self.wts1D[i, i] = self.qwts[i]
+       
+    self.quad_pts2D = [(k, l) for k in range(Nq) for l in range(Nq)]
+    self.quad_wts2D = [self.qwts[k] * self.qwts[l] for k in range(Nq) for l in range(Nq)]
+    self.phi = np.zeros((Nq**2, Nq**2))
+    self.dphi_dx = np.zeros((Nq**2, Nq**2, dim))
+
+    for i in range(Nq):
+        for j in range(Nq):
+            idx = i*Nq + j
+            for q,(k,l) in enumerate(self.quad_pts2D):
+                xq, yq = self.qpts[k], self.qpts[l]
+                self.phi[q, idx] = legendre(i, xq) * legendre(j, yq)
+                self.dphi_dx[q, idx, 0] = legendre_derivative(i, xq) * legendre(j, yq)
+                self.dphi_dx[q, idx, 1] = legendre(i, xq) * legendre_derivative(j, yq)
 
   def jac(self, i, j):
     """Return Jacobian matrix for cell (i, j)."""
@@ -93,36 +107,53 @@ class CellWiseOperator:
   def jac_face(self, i, j, face):
     """Return Jacobian matrix for cell face (i, j)."""
     x0, x1, y0, y1 = self.mesh.cell_bounds(i, j)
-    jac = np.zeros((Nq, 1))
+    jac = 0
     for i in range(Nq):
         if face == "left":
-            jac[i, 0] = 2.0 / (y1 - y0)
+            jac = 2.0 / (y1 - y0)
         elif face == "right":
-            jac[i, 0] = 2.0 / (y1 - y0)
-        elif face == "up":
-            jac[i, 0] = 2.0 / (x1 - x0)
-        elif face == "down":
-            jac[i, 0] = 2.0 / (x1 - x0)
+            jac = 2.0 / (y1 - y0)
+        elif face == "top":
+            jac = 2.0 / (x1 - x0)
+        elif face == "bottom":
+            jac = 2.0 / (x1 - x0)
         else:
             raise ValueError("Invalid face")
     return jac
 
-  def local_mass(self, i, j):
-    M_loc = np.kron(self.phi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D) @ self.jac(i, j) @ np.kron(self.phi1D, self.phi1D)
+  def local_mass(self, i, j, tp = False):
+    if tp:
+        M_loc = np.kron(self.phi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D) @ self.jac(i, j) @ np.kron(self.phi1D, self.phi1D)
+    else:
+        jac = self.jac(i, j)[0, 0]
+        M = np.zeros((Nq**2, Nq**2))
+        for j in range(Nq**2):
+            for i in range(Nq**2):
+                for q, w in enumerate(self.quad_wts2D):
+                    M[j,i] += w * self.phi[q,j] * self.phi[q,i] * jac
+        
     return M_loc
 
-  def local_volume(self, i, j):
-    B_loc = (np.kron(self.phi1D.T @ self.wts1D, self.dphi1D.T @ self.wts1D) + np.kron(self.dphi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D)) @ self.jac(i, j) @ np.kron(self.phi1D, self.phi1D)
+  def local_volume(self, i, j, tp = False):
+    if tp:
+        B_loc = (np.kron(self.phi1D.T @ self.wts1D, self.dphi1D.T @ self.wts1D) + np.kron(self.dphi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D)) @ self.jac(i, j) @ np.kron(self.phi1D, self.phi1D)
+    else:           
+        a = transport_speed()
+        B = np.zeros((Nq**2, Nq**2))
+
+        for j in range(Nq**2):
+            for i in range(Nq**2):
+                for q, w in enumerate(self.quad_wts2D):
+                    B[j,i] += w * self.phi[q,i] * np.dot(a, self.dphi_dx[q,j,:])
+    
     return B_loc
 
   def local_f(self, i, j, t):
-      # Computes the right-hand side of the initial system
-      F_loc = np.zeros((Nq**2, 1))
-      for i in range(Nq):
-        for j in range(Nq):
-            for qpt in self.qpts:
-                F_loc[i * Nq + j] += np.sum(legendre(i, self.qpts) * legendre(j, qpt) * self.qwts * self.jac(i, j)[0, 0] * exact_solution(self.qpts, qpt, t))
-                
+      # computes the right-hand side of the initial system
+      F_loc = np.zeros((Nq**2, 1))                
+      for i in range(Nq**2):
+        for q, w in enumerate(self.quad_wts2D):
+            F_loc[i] += w * self.phi[q,i] * exact_solution(self.quad_pts2D[q][0], self.quad_pts2D[q][1], t)
       return F_loc
 
 # global operator
@@ -132,7 +163,7 @@ class AdvectionOperator:
         self.dofhandler = dofhandler
         self.cellop = cellop
         self.ndofs = dofhandler.ndofs
-        self.t = 0
+        self.time = 0
         self.M = np.zeros((self.ndofs, self.ndofs))
         self.M_inv = np.zeros((self.ndofs, self.ndofs))
         self.B = np.zeros((self.ndofs, self.ndofs))
@@ -175,42 +206,44 @@ class AdvectionOperator:
           
           if dofs_neighbor is None: # boundary
               for lj, gj in enumerate(dofs_cell):
-                lj1 = lj % Nq 
-                lj2 = lj - lj1 * Nq
+                lj1 = lj // Nq 
+                lj2 = lj % Nq
             
-                for qpt in self.cellop.qpts: 
+                for qpt, qwt in zip(self.cellop.qpts, self.cellop.qwts):  
                     pt = self.get_boundary_point(qpt, face["face"])
                     if transport_speed() @ normal > 0: # inflow  
-                        self.Gbound[gj] += (transport_speed() @ normal) * self.cellop.qwts * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * boundary_solution(pt[0], pt[1], self.t)
+                        self.Gbound[gj] += (transport_speed() @ normal) * qwt * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * boundary_solution(pt[0], pt[1], self.time)
                     else: # outflow
                         for li, gi in enumerate(dofs_cell):
-                            li1 = li % Nq
-                            li2 = li - li1 * Nq
-                            self.G[gj, gi] += (transport_speed() @ normal) * self.cellop.qwts * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1]) 
+                            li1 = li // Nq
+                            li2 = li % Nq
+                            self.G[gj, gi] += (transport_speed() @ normal) * qwt * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1]) 
                 
           else: # interior face             
               for lj, gj in enumerate(dofs_cell):
-                lj1 = lj % Nq 
-                lj2 = lj - lj1 * Nq
+                lj1 = lj // Nq 
+                lj2 = lj % Nq
                   
-                for qpt in self.cellop.qpts: 
+                for qpt, qwt in zip(self.cellop.qpts, self.cellop.qwts): 
                     pt = self.get_boundary_point(qpt, face["face"])
 
                     if transport_speed() @ normal > 0: # inflow  
                         for li, gi in enumerate(dofs_neighbor):
-                            li1 = li % Nq
-                            li2 = li - li1 * Nq
-                            self.G[gj, gi] += (transport_speed() @ normal) * self.cellop.qwts * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1])
+                            li1 = li // Nq
+                            li2 = li % Nq
+                            self.G[gj, gi] += (transport_speed() @ normal) * qwt * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1])
                     else: # outflow
                         for li, gi in enumerate(dofs_cell):
-                            li1 = li % Nq
-                            li2 = li - li1 * Nq
-                            self.G[gj, gi] += (transport_speed() @ normal) * self.cellop.qwts * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1])
+                            li1 = li // Nq
+                            li2 = li % Nq
+                            self.G[gj, gi] += (transport_speed() @ normal) * qwt * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * legendre(li1, pt[0]) * legendre(li2, pt[1])
                             
       self.M_inv = np.linalg.inv(self.M)
   
   def set_time(self, t):
       # everything is time-independent except for Gbound, because the boundary condition depends on time
+      if self.time == t:
+          return
       self.time = t
       self.Gbound = np.zeros((self.ndofs, 1))
       # Loop over faces
@@ -224,14 +257,13 @@ class AdvectionOperator:
           
           if dofs_neighbor is None: # boundary
               for lj, gj in enumerate(dofs_cell):
-                lj1 = lj % Nq 
-                lj2 = lj - lj1 * Nq
+                lj1 = lj // Nq 
+                lj2 = lj % Nq
             
-                for qpt in self.cellop.qpts: 
+                for qpt, qwt in zip(self.cellop.qpts, self.cellop.qwts): 
                     pt = self.get_boundary_point(qpt, face["face"])
                     if transport_speed() @ normal > 0: # inflow  
-                        # todo: shapes don't match
-                        self.Gbound[gj] += (transport_speed() @ normal) * self.cellop.qwts * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * boundary_solution(pt[0], pt[1], self.t)
+                        self.Gbound[gj] += (transport_speed() @ normal) * qwt * self.cellop.jac_face(i, j, face["face"]) * legendre(lj1, pt[0]) * legendre(lj2, pt[1]) * boundary_solution(pt[0], pt[1], self.time)
       
   def apply(self, src):
       return self.M_inv @ ((self.B.T - self.G) @ src + self.Gbound)
@@ -254,6 +286,7 @@ def run():
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
     
     rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
     rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
@@ -265,7 +298,7 @@ def run():
         U = rk_stepper.step(operator, A0=U , h=h, t=t)
         t += h
         U_perfect = operator.interpolate(t)
-        error.append(np.norm(U - U_perfect))
+        error.append(np.linalg.norm(U - U_perfect))
         
     print(U)
     print(U_perfect)
@@ -274,6 +307,11 @@ def run():
 run()
     
 # 1) make the explicit method run
+    # check interpolation
+    # check all matrices
+        # M works
+        # B has issues
+    # check time stepping
 # 2) make the implicit method run
 # 3) use the preconditioner for the implicit method
 # 4) if it works, translate it to c++
