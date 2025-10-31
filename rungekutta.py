@@ -108,7 +108,7 @@ class RungeKuttaMethod:
         # 3. If not explicit and not DIRK, it's fully implicit
         return "implicit"
 
-    def step(self, operator, A0, h, t):
+    def step(self, operator, F, A0, h, t):
         """
         Performs a single time step of the Runge-Kutta method.
         
@@ -129,42 +129,62 @@ class RungeKuttaMethod:
         """
         
         if self.method_type == "explicit":
-            A0 = np.asarray(A0)        
+            A0 = np.asarray(A0)
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
 
             for j in range(self.stage):
-                # 1. Calculate the stage solution A_j
-                if j == 0:
-                    sum_term = np.zeros_like(A0)
-                else:
-                    sum_term = np.einsum('l,l...->...', self.A[j, :j], K_stages[:j])
-                
-                A_j = A0 + h * sum_term
-                operator.set_time(t + h * self.c[j])
-                K_stages[j] = operator.apply(A_j)
+                # compute sum_term = sum_{l=0}^{j-1} A[j,l] * K_stages[l]
+                sum_term = np.zeros_like(A0)
+                for l in range(j):  # only sum previous stages
+                    sum_term += self.A[j, l] * K_stages[l]
 
-            # 3. Calculate the final solution A_1
-            final_sum_term = np.einsum('j,j...->...', self.b, K_stages)
+                # stage solution
+                A_j = A0 + h * sum_term
+
+                K_stages[j] = F(t + h * self.c[j], A_j)
+
+            # final solution: A1 = A0 + h * sum_j b[j] * K_stages[j]
+            final_sum_term = np.zeros_like(A0)
+            for j in range(self.stage):
+                final_sum_term += self.b[j] * K_stages[j]
+
             A1 = A0 + h * final_sum_term
             
         elif self.method_type == "dirk":
             A0 = np.asarray(A0)        
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
-            
+
             for j in range(self.stage):
-                sum_term = operator.set_time(t + h * self.c[j])
-                if j == 0 and self.A[0, 0] == 0: # first stage is explicit
-                    K_stages[j] = operator.apply(A0)
+                # Case: first stage explicit (A[0,0] = 0)
+                if j == 0 and self.A[0, 0] == 0:
+                    K_stages[j] = F(t + h * self.c[j], A_j)
                 else:
-                    rhs = A0 + h * np.einsum('l,l...->...', self.A[j, :j], K_stages[:j]) + h * self.A[j,j] * operator.Gbound
-                    gmres_operator = LinearOperator(operator.M.shape, matvec=lambda v: v - h * self.A[j, j] * operator.M_inv @ (operator.B.T - operator.G) @ v)
-                    
-                    Yi, info = gmres(gmres_operator, rhs, M=None, tol=1e-10, maxiter=50) # preconditioner M
-                    
+                    # Compute sum_{l=0}^{j-1} A[j,l] * K_stages[l]
+                    sum_prev = np.zeros_like(A0)
+                    for l in range(j):  # only previous stages
+                        sum_prev += self.A[j, l] * K_stages[l]
+
+                    # rhs = A0 + h * sum_{l<j} A[j,l] K_l + h * A[j,j] * Gbound
+                    rhs = A0 + h * sum_prev + h * self.A[j, j] * operator.Gbound
+
+                    # Define GMRES linear operator: v -> v - h * A[j,j] * M_inv (B^T - G) v
+                    gmres_operator = LinearOperator(
+                        operator.M.shape,
+                        matvec=lambda v: v - h * self.A[j, j] * operator.M_inv @ ((operator.B.T - operator.G) @ v)
+                    )
+
+                    # Solve
+                    Yi, info = gmres(gmres_operator, rhs, M=None, tol=1e-10, maxiter=50)
+
                     K_stages[j] = operator.apply(Yi)
-            
-            final_sum_term = np.einsum('j,j...->...', self.b, K_stages)
-            A1 = A0 + h * final_sum_term
+
+            # Final combination: sum_j b[j] * K_stages[j]
+            final_sum = np.zeros_like(A0)
+            for j in range(self.stage):
+                final_sum += self.b[j] * K_stages[j]
+
+            A1 = A0 + h * final_sum
+
         else:
             raise ValueError("General implicit methods are not implemented.")
         
