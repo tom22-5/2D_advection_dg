@@ -34,8 +34,8 @@ class StructuredMesh2D:
     def face_normals(self):
         """Normals for left, right, bottom, top faces."""
         return {
-            "left":   np.array([1.0, 0.0]),
-            "right":  np.array([-1.0, 0.0]),
-            "bottom": np.array([0.0, 1.0]),
-            "top":    np.array([0.0, -1.0]),
+            "left":   np.array([-1.0, 0.0]),
+            "right":  np.array([1.0, 0.0]),
+            "bottom": np.array([0.0, -1.0]),
+            "top":    np.array([0.0, 1.0]),
         }
