@@ -156,8 +156,9 @@ class RungeKuttaMethod:
 
             for j in range(self.stage):
                 # Case: first stage explicit (A[0,0] = 0)
+                operator.set_time(t + h * self.c[j])
                 if j == 0 and self.A[0, 0] == 0:
-                    K_stages[j] = F(t + h * self.c[j], A_j)
+                    K_stages[j] = operator.M_inv @ ((operator.B - operator.G) @ A0 - operator.Gbound)
                 else:
                     # Compute sum_{l=0}^{j-1} A[j,l] * K_stages[l]
                     sum_prev = np.zeros_like(A0)
@@ -165,18 +166,41 @@ class RungeKuttaMethod:
                         sum_prev += self.A[j, l] * K_stages[l]
 
                     # rhs = A0 + h * sum_{l<j} A[j,l] K_l + h * A[j,j] * Gbound
-                    rhs = A0 + h * sum_prev + h * self.A[j, j] * operator.Gbound
+                    rhs = A0 + h * sum_prev + h * self.A[j, j] * operator.M_inv @ operator.Gbound
 
                     # Define GMRES linear operator: v -> v - h * A[j,j] * M_inv (B^T - G) v
+                    n = operator.ndofs
+
+                    # Flatten RHS for GMRES
+                    rhs_flat = rhs.reshape(n)
+
+                    # Define correct matvec: always flat input → flat output
+                    def matvec(v_flat):
+                        v = v_flat.reshape(n, 1)   # column
+                        w = v - h * self.A[j, j] * (
+                            operator.M_inv @ ((operator.B.T - operator.G) @ v)
+                        )
+                        return w.reshape(n)       # flat
+
                     gmres_operator = LinearOperator(
-                        operator.M.shape,
-                        matvec=lambda v: v - h * self.A[j, j] * operator.M_inv @ ((operator.B.T - operator.G) @ v)
+                        shape=(n, n),
+                        matvec=matvec,
+                        dtype=float
                     )
 
-                    # Solve
-                    Yi, info = gmres(gmres_operator, rhs, M=None, tol=1e-10, maxiter=50)
+                    # Solve in flat space
+                    Yi_flat, info = gmres(
+                        gmres_operator,
+                        rhs_flat,
+                        rtol=1e-10,
+                        atol=1e-14,
+                        maxiter=50,
+                    )
 
-                    K_stages[j] = operator.apply(Yi)
+                    # Back to DG vector shape
+                    Yi = Yi_flat.reshape(n, 1)
+                    
+                    K_stages[j] = operator.M_inv @ ((operator.B - operator.G) @ Yi - operator.Gbound)
 
             # Final combination: sum_j b[j] * K_stages[j]
             final_sum = np.zeros_like(A0)

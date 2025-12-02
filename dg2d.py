@@ -29,8 +29,8 @@ precontioner_type = "svd"
 flux = "upwind"
 
 # Hyperparameters grid
-Nx = 1
-Ny = 1
+Nx = 20
+Ny = 20
 Lx = 1.0
 Ly = 1.0
 dx = Lx / Nx
@@ -42,17 +42,18 @@ Nq = fe_degree + 1
 basis_type = "lagrange"
 
 # Hyperparameters time integration
-explicit = True
+explicit = False
 rk = 1
-h = 0.1
+h = 0.0001
 
 # exact solution at time = 0
 def initial_solution(x1, x2):
-  return np.sin(2.0 * np.pi * x1) * np.sin(2.0 * np.pi * x2)
+    # return 1
+    return np.sin(2.0 * np.pi * x1) * np.sin(2.0 * np.pi * x2)
 
 # exact analytical solution at any time
 def exact_solution(x1, x2, t):
-  return initial_solution(x1 - transport_speed()[0] * t, x2 - transport_speed()[1] * t)
+    return initial_solution(x1 - transport_speed()[0] * t, x2 - transport_speed()[1] * t)
   
 # exact solution at boundary
 def boundary_solution(x1, x2, t):
@@ -77,7 +78,7 @@ class CellWiseOperator:
     self.quad_wts2D = [self.qwts[k] * self.qwts[l] for k in range(Nq) for l in range(Nq)]
     self.phi = np.zeros((Nq**2, Nq**2))
     self.dphi_dx = np.zeros((Nq**2, Nq**2, dim))
-    self.bd_phi = dict()
+    self.bd_phi = {face: np.zeros((Nq, Nq**2)) for face in ["left", "right", "top", "bottom"]}
 
     for i in range(Nq):
         for j in range(Nq):
@@ -88,10 +89,9 @@ class CellWiseOperator:
                 self.dphi_dx[q, idx, 1] = self.basis_function(i, xq) * self.basis_function_derivative(j, yq)
                 
             for face in ["left", "right", "top", "bottom"]:
-                self.bd_phi[face] = np.zeros((Nq, Nq**2))
                 for q, qpt in enumerate(self.qpts):
                     xq, yq = self.get_boundary_point(qpt, face)
-                    self.bd_phi[face][q, idx] = self.basis_function(i, xq) * self.basis_function(i, yq) 
+                    self.bd_phi[face][q, idx] = self.basis_function(i, xq) * self.basis_function(j, yq) 
                     
     """Precompute 1D function values and derivatives to exploit tensor product structure."""
     self.phi1D = np.zeros((Nq, Nq))
@@ -150,6 +150,19 @@ class CellWiseOperator:
           return z1, -1
       elif face == "bottom":
           return z1, 1
+      else:
+          raise ValueError("invalid face")
+  
+  def opposite(self, face):
+      """Return corresponding face for neighbor cell (opposite)"""
+      if face == "left":
+          return "right"
+      elif face == "right":
+          return "left"
+      elif face == "top":
+          return "bottom"
+      elif face == "bottom":
+          return "top"
       else:
           raise ValueError("invalid face")
   
@@ -295,7 +308,8 @@ class AdvectionOperator:
                     if normal_speed < 0: # inflow  
                         for li, gi in enumerate(dofs_neighbor):
                             x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
-                            self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
+                            face_neighbor = self.cellop.opposite(face["face"])
+                            self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face_neighbor][q, li]
                     else: # outflow
                         for li, gi in enumerate(dofs_cell):
                             self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
@@ -326,16 +340,25 @@ class AdvectionOperator:
                     if normal_speed < 0: # inflow  
                         x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
                         self.Gbound[gj] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * boundary_solution(x1, x2, self.time)
-      
+ 
   def apply(self, src):
       return self.M_inv @ ((self.B - self.G) @ src - self.Gbound)
+  
+  def apply_volume(self, src):
+      return self.B @ src
+  
+  def apply_boundary(self, src):
+      return self.G @ src
+  
+  def add_boundary(self):
+      return self.Gbound
   
   def interpolate(self, t):
       F = np.zeros((self.ndofs, 1))
       for (i, j), dofs in self.dofhandler.iter_cells():
           # local F
           F_loc = self.cellop.local_f(i, j, t)
-          print_matrix(f"F_loc({i},{j})", F_loc)
+          #   print_matrix(f"F_loc({i},{j})", F_loc)
           
           # global mass and volume
           for li, gi in enumerate(dofs):
@@ -343,10 +366,12 @@ class AdvectionOperator:
       return self.M_inv @ F
   
   def evaluate_function(self, U, x, y):
+    
     for (i, j), dofs in self.dofhandler.iter_cells():
         x0, x1, y0, y1 = self.mesh.cell_bounds(i, j)
         if x0 <= x <= x1 and y0 <= y <= y1:
-            return self.cellop.evaluate_function(U, x, y, dofs)
+            z1, z2 = self.cellop.map_to_reference(i, j, x, y)
+            return self.cellop.evaluate_function(U, z1, z2, dofs)
 
     raise ValueError("point outside domain")
   
@@ -357,16 +382,16 @@ def run():
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
     operator.assemble_system()
-    print_matrix("M", operator.M)
-    print_matrix("M_inv", operator.M_inv)
-    print_matrix("B", operator.B)
-    print_matrix("G", operator.G)
-    print_matrix("Gbound", operator.Gbound)
+    # print_matrix("M", operator.M)
+    # print_matrix("M_inv", operator.M_inv)
+    # print_matrix("B", operator.B)
+    # print_matrix("G", operator.G)
+    # print_matrix("Gbound", operator.Gbound)
     
     rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
     rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
     U = operator.interpolate(t)
-    print_matrix("U", U)
+    # print_matrix("U", U)
     
     #show(lambda x, y: operator.evaluate_function(U, x, y))
     #show(lambda x, y: initial_solution(x, y))
@@ -375,26 +400,143 @@ def run():
     error.append(average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y)))
     print(f"Midpoint distance: {np.abs(operator.evaluate_function(U, 0.5, 0.5) - initial_solution(0.5, 0.5))}.")
     print(f"Average distance: {error[0]}")
-    show(lambda x, y: operator.evaluate_function(U, x, y))
+    # show(lambda x, y: operator.evaluate_function(U, x, y))
     
     def F(t, A):
         operator.set_time(t)
         return operator.apply(A)
     
+    # test 4: integration
+    # # Forward Euler reference
+    # RHS = F(0.0, U)
+    # U_FE = U + h * RHS
+
+    # # RK4 step
+    # rk_A, rk_b, rk_c = rk_scheme(rk=4, explicit=True)
+    # rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+    # U_RK4 = rk_stepper.step("", F, A0=U, h=h, t=0.0) 
+    # diff_FE_RK4 = U_FE - U_RK4
+    # print("||U_FE - U_RK4|| =", norm(diff_FE_RK4))
+    # return
+    
     iter = 0
     while t < final_time:
-        U = rk_stepper.step("", F, A0=U , h=h, t=t)
+        U = rk_stepper.step(operator, F, A0=U , h=h, t=t)
         t += h
         iter += 1
         error.append(average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t)))
+        # show(lambda x, y: operator.evaluate_function(U, x, y)) 
+        # show(lambda x, y: exact_solution(x, y, t)) 
         if iter % 1 == 0:
             print(f"Average error in iteration {iter}: {error[iter]}.")
             
-    show(lambda x, y: operator.evaluate_function(U, x, y))
+    # show(lambda x, y: operator.evaluate_function(U, x, y))
   
-show(lambda x, y: exact_solution(x, y, 1))  
-run()
+### tests
+# test 1: constant solution
+def test_constant_solution():
+    t = 0.0
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    op = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    op.assemble_system()
+    test_components(op)
+    inspect_G_on_constant(op)
+
+    # constant state
+    U = np.ones((op.ndofs, 1))
+
+    op.set_time(t)
+    RHS = op.apply(U)   # should be ~0 for all entries
+
+    print("||RHS(constant)|| =", norm(RHS))
+
+def test_components(op):
+    # constant state
+    U = np.ones((op.ndofs, 1))
     
+    vol = op.apply_volume(U)
+    surf = op.apply_boundary(U)
+    bd = op.add_boundary()
+    
+    print("||B e|| =", norm(vol))
+    print("||G e|| =", norm(surf))
+    print("||Gbound|| =", norm(bd))
+
+def inspect_G_on_constant(op):
+    e = np.ones((op.ndofs, 1))
+    ge = op.G @ e
+
+    print("Global ||G e|| =", norm(ge))
+
+    # print by cell
+    for (ii, jj), dofs in op.dofhandler.iter_cells():
+        cell_vals = ge[dofs].ravel()
+        print(f"cell ({ii},{jj})  G e =", cell_vals)
+        
+    print(f"Global Gbound: {op.Gbound}")
+
+# test 2: time derivative for 2D sine
+def test_time_derivative():
+    t = 0.0
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    op = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    op.assemble_system()
+    Ut_exact_proj = project_exact_ut(op)
+    U = op.interpolate(t)
+
+    op.set_time(t)
+    RHS = op.apply(U)
+
+    diff = RHS - Ut_exact_proj
+    print("||RHS||           =", norm(RHS))
+    print("||Ut_exact_proj|| =", norm(Ut_exact_proj))
+    print("||diff||          =", norm(diff))
+    print("Relative error    =", norm(diff)/norm(Ut_exact_proj))
+    
+def exact_ut(x, y):
+    # u0 = sin(2πx) sin(2πy)
+    # ∂x u0 = 2π cos(2πx) sin(2πy)
+    # ∂y u0 = 2π sin(2πx) cos(2πy)
+    return -(1.0 * (2*np.pi * np.cos(2*np.pi*x) * np.sin(2*np.pi*y))
+             + 1.0 * (2*np.pi * np.sin(2*np.pi*x) * np.cos(2*np.pi*y)))
+
+def project_exact_ut(operator):
+    F = np.zeros((operator.ndofs, 1))
+    for (ii, jj), dofs in operator.dofhandler.iter_cells():
+        det_jac = operator.cellop.det_jac(ii, jj)
+        F_loc = np.zeros((Nq**2, 1))
+        for i in range(Nq**2):
+            for q, w in enumerate(operator.cellop.quad_wts2D):
+                z1, z2 = operator.cellop.quad_pts2D[q]
+                x, y = operator.cellop.map_to_original(ii, jj, z1, z2)
+                F_loc[i] += w * operator.cellop.phi[q, i] * exact_ut(x, y) * det_jac
+        for li, gi in enumerate(dofs):
+            F[gi] += F_loc[li]
+    return operator.M_inv @ F
+
+# test 3: time integration
+def test_time_integrator():
+    def F_test(t, u):
+        return np.array([[1.0]])  # same shape as u
+
+    rk_A, rk_b, rk_c = rk_scheme(rk=4, explicit=True)
+    rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+
+    u = np.array([[0.0]])
+    t = 0.0
+    h = 0.001
+
+    for n in range(10):
+        u = rk_stepper.step("", F_test, A0=u, h=h, t=t)
+        t += h
+        print(n+1, " t =", t, " u =", u[0,0], " exact =", t)
+    
+# show(lambda x, y: exact_solution(x, y, 0))  
+run()    
 # 1) make the explicit method run
     # check interpolation
     # check all matrices

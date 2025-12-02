@@ -34,6 +34,7 @@ def show(evaluate):
     ax.set_title("DG Solution (3D Surface Plot)")
 
     plt.show()
+    plt.pause(5)
 
 def average(evaluate):
     Nx, Ny = 100, 100
