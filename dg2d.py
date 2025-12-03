@@ -12,6 +12,8 @@ from rungekutta import rk_scheme, RungeKuttaMethod
 from mesh import StructuredMesh2D
 from dofhandler import DoFHandler2D
 from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative
+from scipy.sparse.linalg import gmres, LinearOperator
+from lanczos import form_2d_preconditioner, apply_2d_preconditioner, lanczos_svd, kronecker_svd
 
 # Hyperparameters
 dim = 2
@@ -43,6 +45,7 @@ basis_type = "lagrange"
 
 # Hyperparameters time integration
 explicit = False
+preconditioner = "pazner"
 rk = 1
 h = 0.0001
 
@@ -375,6 +378,48 @@ class AdvectionOperator:
 
     raise ValueError("point outside domain")
   
+  def build_operator(self, factor):
+    n = self.ndofs
+
+    def matvec(v_flat):
+        v = v_flat.reshape(n, 1)
+        w = v - h * factor * (
+            self.M_inv @ ((self.B.T - self.G) @ v)
+        )
+        return w.reshape(n)
+    
+    def rmatvec(v_flat):
+        v = v_flat.reshape(n, 1)
+        w = v - h * factor * (
+            (self.B - self.G.T) @ self.M_inv.T @ v
+        )
+        return w.reshape(n)
+
+    linear_operator = LinearOperator(
+        shape=(n, n),
+        matvec=matvec,
+        rmatvec=rmatvec,
+        dtype=float
+    )
+    return linear_operator
+  
+  def build_preconditioner(self, operator):
+    n = self.ndofs   
+    k = int(np.round(np.sqrt(n)))
+    def precond(v_flat):
+        v = v_flat.reshape(n, 1)
+        precon_dict = form_2d_preconditioner(operator, k, k, k, k, 2)
+        w = apply_2d_preconditioner(v, precon_dict, k, k)
+        return w.reshape(n)
+
+    preconditioner = LinearOperator(
+        shape=(n, n),
+        matvec=precond,
+        dtype=float
+    ) 
+
+    return preconditioner
+
 def run():
     t = start_time
     mesh = StructuredMesh2D(Nx, Ny)
@@ -535,12 +580,182 @@ def test_time_integrator():
         t += h
         print(n+1, " t =", t, " u =", u[0,0], " exact =", t)
     
-# show(lambda x, y: exact_solution(x, y, 0))  
-run()    
+# test 4: test kronecker svd
+def test_preconditioner():
+    # test_lanczos()
+    # test_kronecker()
+    pass
+
+def test_lanczos():
+    # Generate a matrix
+    A = np.array([
+        [10, 0, 0, 0, 0],
+        [0, 9, 0, 0, 0],
+        [0, 0, 8, 0, 0],
+        [0, 0, 0, 7, 0],
+        [0, 0, 0, 0, 6],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]
+    ])
+    
+
+    # Check its rank to be sure
+    rank = np.linalg.matrix_rank(A)
+    print("Rank of A:", rank)
+    r = 5
+    J = 11
+
+    # Lanczos SVD (your method)
+    linear_operator = LinearOperator(
+        shape=A.shape,
+        matvec=lambda x: A @ x,
+        rmatvec=lambda x: A.T @ x,
+        dtype=float
+    )  
+    U, sigma, V = lanczos_svd(linear_operator, J=J, r=r, tol=1e-10)
+    # print(U.shape)
+    # print(sigma.shape)
+    # print(V.shape)
+
+    # Reconstruct A from Lanczos SVD
+    A_lanczos = U @ np.diag(sigma) @ V
+    error_lanczos = np.linalg.norm(A - A_lanczos)
+
+    print(f"Lanczos{J} reconstruction error: ", error_lanczos)
+
+    print(U)
+    print(sigma)
+    print(V)
+    # Full SVD for comparison
+    U_opt, sigma_opt, V_opt = svd(A, full_matrices=False)
+    A_opt = U_opt[:, :r] @ np.diag(sigma_opt[:r]) @ V_opt[:r, :]
+    error_opt = np.linalg.norm(A - A_opt)
+    print(U_opt)
+    print(sigma_opt)
+    print(V_opt)
+    print("Optimal SVD reconstruction error: ", error_opt)
+
+def test_kronecker():
+    # Build a matrix A as a sum of Kronecker products
+    m1, m2 = 2, 3
+    n1, n2 = 2, 4
+    r_true = 4
+
+    A_true = sum(np.kron(np.random.randn(m1, n1), np.random.randn(m2, n2)) for _ in range(r_true))
+
+    A0 = np.array([[1, 2],
+                [3, 4]])
+    B0 = np.array([[0, 1, 2, 3],
+                [4, 5, 6, 7],
+                [8, 9, 10, 11]])
+
+    A1 = np.array([[5, 6],
+                [7, 8]])
+    B1 = np.array([[1, 0, -1, 0],
+                [0, 1, 0, -1],
+                [1, 1, 1, 1]])
+
+    # Kronecker sum
+    A_true = np.kron(A0, B0) + np.kron(A1, B1)
+    print(A_true.shape)
+    print(A_true)
+
+    A = LinearOperator(
+        shape=A_true.shape,
+        matvec=lambda x: A_true @ x,
+        rmatvec=lambda x: A_true.T @ x,
+        dtype=float
+    )  
+    
+    # Step 1: Build Tilde Operator
+    def matvec(v):        
+        unit_vector = np.zeros(n1 * n2)
+        solution_vector = np.zeros(m1 * n1)
+        for j1 in range(n1):
+            for j2 in range(n2):
+                unit_vector[j1 * n2 + j2] = 1
+                column_vector = A.matvec(unit_vector)
+                unit_vector[j1 * n2 + j2] = 0
+                
+                Z = column_vector.reshape(m2, m1, order="F")
+                for i1 in range(m1):
+                    out_index = i1 + j1 * m1
+                    for i2 in range(m2):
+                        in_index = i2 + j2 * m2
+                        solution_vector[out_index] += Z[i2, i1] * v[in_index]
+        return solution_vector
+    
+    def rmatvec(v):        
+        unit_vector = np.zeros(n1 * n2)
+        solution_vector = np.zeros(m2 * n2)
+        for j1 in range(n2):
+            for j2 in range(n1):
+                unit_vector[j2 * n2 + j1] = 1
+                column_vector = A.matvec(unit_vector)
+                unit_vector[j2 * n2 + j1] = 0
+                
+                Z = column_vector.reshape(m2, m1, order="F")
+                for i2 in range(m2):
+                    out_index = i2 + j1 * m2
+                    for i1 in range(m1):
+                        in_index = i1 + j2 * m1
+                        solution_vector[out_index] += Z[i2, i1] * v[in_index]
+        
+        return solution_vector
+
+    A_tilde = LinearOperator(
+        shape=(m1 * n1, m2 * n2),
+        matvec=matvec,
+        rmatvec=rmatvec,
+        dtype=float
+    )
+    
+    # Build Tilde Matrix
+    A_tilde_matrix = np.zeros((m1 * n1, m2 * n2))
+    for i1 in range(m1):
+        for i2 in range(n1):
+            for j1 in range(n2):
+                for j2 in range(m2):
+                    A_tilde_matrix[i2 * m1 + i1, j1 * m2 + j2] = A_true[i1 * m2 + j2, i2 * n2 + j1]
+    
+    print_matrix("A", A_true)
+    print_matrix("Atilde", A_tilde_matrix)
+    
+    vec = np.random.randn(m2 * n2)
+    print(f"Atilde matvec error: {norm(A_tilde_matrix @ vec - A_tilde.matvec(vec))}")
+    vec = np.random.randn(m1 * n1)
+    print(f"Atilde rmatvec error: {norm(A_tilde_matrix.T @ vec - A_tilde.rmatvec(vec))}")
+    pass
+
+    # Compute KSVD
+    A_list_opt, B_list_opt, s_opt = kronecker_svd(A, m1, m2, n1, n2, r=r_true, method="lanczos")
+
+    r_true = min(len(A_list_opt), r_true)
+    # Reconstruct approximation
+    A_approx_opt = sum(np.kron(A_list_opt[j], B_list_opt[j]) for j in range(r_true))
+    #A_approx = sum(np.kron(A_list[j], B_list[j]) for j in range(r_true))
+
+    # Compare
+    error = np.linalg.norm(A_true - A_approx_opt)
+    # error_lanczos = np.linalg.norm(A_true - A_approx)
+    print("Reconstruction error SVD:", error)
+    print("Singular values from reshaped SVD:", s_opt)
+    # print("Reconstruction error Lanczos SVD:", error_lanczos)
+    # print("Singular values from Lanczos SVD:", s)
+
+# show(lambda x, y: exact_solution(x, y, 0)) 
+# run() 
+test_preconditioner()
+
 # 1) make the explicit method run
     # check interpolation
     # check all matrices
     # check time stepping                
 # 2) make the implicit method run
 # 3) use the preconditioner for the implicit method
+    # next: write a class preconditioner
+    # feed it into dirk
 # 4) if it works, translate it to c++

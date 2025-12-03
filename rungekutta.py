@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.sparse.linalg import gmres, LinearOperator
+from lanczos import form_2d_preconditioner, apply_2d_preconditioner
 
 # define rk schemes
 def rk_scheme(rk, explicit = True):
@@ -151,7 +152,7 @@ class RungeKuttaMethod:
             A1 = A0 + h * final_sum_term
             
         elif self.method_type == "dirk":
-            A0 = np.asarray(A0)        
+            A0 = np.asarray(A0)       
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
 
             for j in range(self.stage):
@@ -173,25 +174,14 @@ class RungeKuttaMethod:
 
                     # Flatten RHS for GMRES
                     rhs_flat = rhs.reshape(n)
-
-                    # Define correct matvec: always flat input → flat output
-                    def matvec(v_flat):
-                        v = v_flat.reshape(n, 1)   # column
-                        w = v - h * self.A[j, j] * (
-                            operator.M_inv @ ((operator.B.T - operator.G) @ v)
-                        )
-                        return w.reshape(n)       # flat
-
-                    gmres_operator = LinearOperator(
-                        shape=(n, n),
-                        matvec=matvec,
-                        dtype=float
-                    )
+                    gmres_operator = operator.build_operator(self.A[j, j])
+                    preconditioner = operator.build_preconditioner(gmres_operator)
 
                     # Solve in flat space
                     Yi_flat, info = gmres(
                         gmres_operator,
                         rhs_flat,
+                        M=preconditioner,
                         rtol=1e-10,
                         atol=1e-14,
                         maxiter=50,
