@@ -35,7 +35,7 @@ dx = Lx / Nx
 dy = Ly / Ny
 
 # Hyperparameters polynomials and quadrature
-fe_degree = 2
+fe_degree = 3
 Nq = fe_degree + 1
 basis_type = "lagrange"
 
@@ -863,16 +863,73 @@ def test_application():
     res = np.linalg.norm(P_approx @ x_sylv - vec)
     print("Residual ||P_approx x_sylv - b|| =", res)
 
-# show(lambda x, y: exact_solution(x, y, 0)) 
-run() 
-# test_preconditioner()
+# experiment 1
+def make_snapshots():
+    for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
+        show(lambda x, y: exact_solution(x, y, t), t) 
 
-# 1) make the explicit method run
-    # check interpolation
-    # check all matrices
-    # check time stepping                
-# 2) make the implicit method run
-# 3) use the preconditioner for the implicit method
-    # next: write a class preconditioner
-    # feed it into dirk
-# 4) if it works, translate it to c++
+# experiment 2: explicit methods
+def plot_explicit_errors(step_sizes, errors, initial_error, name="rk_convergence"):
+    plt.figure(figsize=(8, 6))
+
+    for rk in [1, 2, 3, 4]:
+        plt.loglog(step_sizes, errors[rk], marker='o', label=f"RK{rk}")
+
+    plt.gca().invert_xaxis()  # optional: decreasing h goes left->right
+    plt.axhline(
+        y=initial_error,
+        color='k',
+        linestyle='--',
+        linewidth=1,
+        label="initial precision"
+    )
+    plt.ylim(initial_error * 0.1, 1e1)
+    plt.xlabel("Time step size h")
+    plt.ylabel("Error at final time")
+    plt.title("Runge--Kutta Convergence")
+    plt.grid(True, which="both", ls="--", alpha=0.5)
+    plt.legend()
+
+    plt.savefig(f"{name}.png", dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved {name}.png")
+    
+def run_explicit():
+    explicit = False
+    name = "rk_implicit_convergence"
+    t = start_time
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
+    U = operator.interpolate(t)
+    initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
+    print(f"Average distance: {initial_error}")
+            
+    step_sizes = [0.005]
+    errors = {1: [], 2: [], 3: [], 4: []}
+    for rk in [1, 2, 3, 4]:
+        for h in step_sizes:
+            print(f"Running experiment: rk={rk}, h={h}.")
+            t = start_time
+            operator.set_time(t)
+            U = operator.interpolate(t)
+            
+            rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
+            rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+            def F(t, A):
+                operator.set_time(t)
+                return operator.apply(A)
+            
+            while t < final_time:
+                U = rk_stepper.step(operator, F, A0=U , h=h, t=t, precondition=False)
+                t += h
+                
+            # compute average error at final time
+            err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+            errors[rk].append(abs(err))
+    
+    plot_explicit_errors(step_sizes, errors, initial_error, name)
+
+run_explicit() 

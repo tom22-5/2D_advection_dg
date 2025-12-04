@@ -8,7 +8,7 @@ def rk_scheme(rk, explicit = True):
     b= None
     c = None
     if explicit == True:
-        if rk == 4:
+        if rk == 4: # Classical explicit RK4 (order 4)
             A = [
                 [0, 0, 0, 0],
                 [1/2, 0, 0, 0],
@@ -17,19 +17,55 @@ def rk_scheme(rk, explicit = True):
             ]
             b = [1/6, 1/3, 1/3, 1/6]
             c = [0, 1/2, 1/2, 1]
-        else:
+        elif rk == 3:  # Classical explicit RK3 (order 3)
+            A = [
+                [0,   0, 0],
+                [1/2, 0, 0],
+                [-1,  2, 0]
+            ]
+            b = [1/6, 2/3, 1/6]
+            c = [0, 1/2, 1]
+        elif rk == 2:  # Heun (explicit RK2)
+            A = [
+                [0, 0],
+                [1, 0]
+            ]
+            b = [1/2, 1/2]
+            c = [0, 1]
+        else: # Euler
             A = [[0]]
             b = [1]
             c = [0]
     else:
-        if rk == 2:
+        if rk == 4:
+            A = [
+                [0.0,          0.0,          0.0,          0.0],
+                [3/4,          3/4,          0.0,          0.0],
+                [447/675,     -357/675,      855/675,      0.0],
+                [13/42,        84/42,       -125/42,       70/42],
+            ]
+
+            b = [13/42, 84/42, -125/42, 70/42]
+
+            c = [0.0, 3/2, 7/5, 1.0]
+        elif rk == 3:
+            A = [
+                [0.0,       0.0,       0.0],
+                [3/4,       3/4,       0.0],
+                [7/18,     -4/18,     15/18]
+            ]
+
+            b = [7/18, -4/18, 15/18]
+
+            c = [0.0, 3/2, 1.0]
+        elif rk == 2: # Trapezoidal
             A = [
                 [0, 0],
                 [0.5, 0.5]
             ]
             b = [0, 0.5]
             c = [0, 1]
-        else:
+        else: # Implicit Euler
             A = [[1]]
             b = [1]
             c = [1]

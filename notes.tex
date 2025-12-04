@@ -11,11 +11,12 @@
 \usepackage{algpseudocode}
 \usepackage{multirow}
 \usepackage{array}
-\usepackage{hyperref}
 \usepackage{amsthm}
 \usepackage{amsfonts}
 \usepackage{booktabs}
 \usepackage{color}
+\usepackage{graphicx}
+\usepackage{subcaption}
 %%%
 
 \newtheorem{theorem}{Theorem}
@@ -42,7 +43,8 @@
 Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations turn out to be more efficient in practice. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide an optimized C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a basic matrix-based DG implementation of two-dimensional linear advection with upwind flux.
 \end{abstract}
 
-\section*{The Discontinuous Galerkin For Two-Dimensional Linear Advection}
+\section*{A Matrix-Based Discontinuous Galerkin Implementation For Two-Dimensional Linear Advection In Python}
+\textit{The code for all experiments is provided in \cite{2D_advection_dg}.} \\
 As a first step, we provide a matrix-based DG discretization for the two-dimensional linear advection system 
 \begin{align*}
 &\partial_t u(x, t) + a(x,t) \cdot \nabla u(x,t) = 0 \quad \forall x \in [0,1]^2, \quad 0 \leq t \leq T
@@ -164,13 +166,215 @@ G_{ji^L} \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(
 \begin{align*}
 G_{ji^R} \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^R_{i_0}(-1) \phi^R_{j_1}(x_q) u^R_i\end{align*}
 
-Now that we set up the semi-discretization in space, we can now focus on time integration. We can evolve \eqref{eq:ode} in time by appling a Runge--Kutta method. In our experiments, we set $N_x = 20, N_y = 20$ and $p=2$. Figure 1 shows the convergence behaviour for different explicit integrators of order 1 to 4.
+Now that we set up the semi-discretization in space, we can now focus on time integration. We can evolve \eqref{eq:ode} in time by appling a Runge--Kutta method. In our experiments, we set $N_x = 20, N_y = 20$ and $p=2$. We choose Lagrangian elements
+\begin{align*}
+\phi_i(x) = \prod_{j \neq i} \frac{x - x_j}{x_i - x_j}
+\end{align*}
+and set
+\begin{align*}
+&u(x_0, x_1, t) = sin(2 \Pi (x_0 - t)) sin(2 \Pi (x_1 - t))
+\end{align*}
+with the corresponding Dirichlet condition to define the linear advection system for $0 \leq t \leq T = 1$. Figure \ref{fig:exact} shows different snapshots of the perfect solution. It is evident that the solution at final time and initial time is the same.
 
-For implicit DIRK schemes of order 1 to 4, we get the result illustrated in figure 2.
+\begin{figure}[h!]
+    \centering
+    \label{fig:exact}
 
-Combining this with the FDM integrator of Diosady yields figure 3.
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{snapshot-0.00.png}
+        \caption{$t = 0.00$}
+    \end{subfigure}
+    \hfill
+        \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{snapshot-0.25.png}
+        \caption{$t = 0.25$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{snapshot-0.50.png}
+        \caption{$t = 0.50$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{snapshot-0.75.png}
+        \caption{$t = 0.75$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{snapshot-1.00.png}
+        \caption{$t = 1.00$}
+    \end{subfigure}
 
-Using Pazners KSVD-based integrator gives the results in figure 4. 
+    \caption{Snapshots of the exact solution at selected times.}
+\end{figure}
+
+Figure \ref{fig:explicitresults} shows the convergence behaviour for the different explicit integrators of order 1 to 4 from figure \ref{fig:butcherExplicit}. As expected, the higher the order of the method, the bigger is the stable step size for our problem.
+
+\begin{figure}[h!]
+    \centering
+	\label{fig:butcherExplicit}
+    % ------------------ Euler ------------------
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|c}
+        0 & 0 \\ \hline
+          & 1
+        \end{array}
+        \]
+        \caption{Explicit Euler (order 1)}
+    \end{subfigure}
+    \hfill
+    % ------------------ RK2 ------------------
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|cc}
+        0 & 0 & 0 \\
+        1 & 1 & 0 \\ \hline
+          & \tfrac12 & \tfrac12
+        \end{array}
+        \]
+        \caption{Heun / Explicit RK2 (order 2)}
+    \end{subfigure}
+
+    \vspace{1em}
+
+    % ------------------ RK3 ------------------
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|ccc}
+        0   & 0   & 0 & 0 \\
+        \tfrac12 & \tfrac12 & 0 & 0 \\
+        1   & -1  & 2 & 0 \\ \hline
+            & \tfrac16 & \tfrac23 & \tfrac16
+        \end{array}
+        \]
+        \caption{Classical explicit RK3 (order 3)}
+    \end{subfigure}
+    \hfill
+    % ------------------ RK4 ------------------
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|cccc}
+        0   & 0    & 0    & 0    & 0 \\
+        \tfrac12 & \tfrac12 & 0    & 0    & 0 \\
+        \tfrac12 & 0    & \tfrac12 & 0    & 0 \\
+        1   & 0    & 0    & 1    & 0 \\ \hline
+            & \tfrac16 & \tfrac13 & \tfrac13 & \tfrac16
+        \end{array}
+        \]
+        \caption{Classical explicit RK4 (order 4)}
+    \end{subfigure}
+
+    \caption{Butcher tableaus of explicit Runge--Kutta schemes of order 1--4.}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \label{fig:explicitresults}
+    \includegraphics[width=0.85\textwidth]{explicit_rk_convergence.png}
+    \caption{Convergence of explicit Runge--Kutta methods with 1 to 4 stages.}
+    \label{fig:explicit-rk-convergence}
+\end{figure}
+
+For implicit DIRK schemes~\cite{kennedy2016diagonally} of order 1 to 4 from figure \ref{fig:butcherImplicit}, we get the result illustrated in figure \ref{fig:implicitresults}.
+
+\begin{figure}[h!]
+    \centering
+    \label{fig:butcherImplicit}
+
+    % ================= Implicit Euler =================
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|c}
+        1 & 1 \\ \hline
+          & 1
+        \end{array}
+        \]
+        \caption{Implicit Euler (order 1)}
+    \end{subfigure}
+    \hfill
+    % ================= Trapezoidal Rule =================
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|cc}
+        0 & 0   & 0 \\
+        1 & \tfrac12 & \tfrac12 \\ \hline
+          & 0 & \tfrac12
+        \end{array}
+        \]
+        \caption{Trapezoidal Rule (order 2)}
+    \end{subfigure}
+
+    \vspace{1em}
+
+    % ================= DIRK3 =================
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|ccc}
+        0     & 0           & 0            & 0 \\
+        \tfrac32 & \tfrac34  & \tfrac34     & 0 \\
+        1     & \tfrac{7}{18} & -\tfrac{4}{18} & \tfrac{15}{18} \\ \hline
+              & \tfrac{7}{18} & -\tfrac{4}{18} & \tfrac{15}{18}
+        \end{array}
+        \]
+        \caption{DIRK3 (order 3)}
+    \end{subfigure}
+    \hfill
+    % ================= DIRK4 =================
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \[
+        \begin{array}{c|ccccc}
+        0 & 0 & 0 & 0 & 0 & 0 \\
+        \tfrac32 & \tfrac34 & \tfrac34 & 0 & 0 & 0 \\
+        \tfrac75 & \tfrac{447}{675} & -\tfrac{357}{675} & \tfrac{855}{675} & 0 & 0 \\
+        1 & \tfrac{13}{42} & \tfrac{84}{42} & -\tfrac{125}{42} & \tfrac{70}{42} & 0 \\ \hline
+          & \tfrac{13}{42} & \tfrac{84}{42} & -\tfrac{125}{42} & \tfrac{70}{42} & 0
+        \end{array}
+        \]
+        \caption{DIRK4 (order 4, 5-stage)}
+    \end{subfigure}
+
+    \caption{Butcher tableaus for the implicit Euler, trapezoidal rule, DIRK3, and DIRK4 time integration methods.}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \label{fig:implicitresults}
+    \includegraphics[width=0.85\textwidth]{rk_implicit_convergence.png}
+    \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages.}
+    \label{fig:implicit-rk-convergence}
+\end{figure}
+
+In order to speed up the implicit integrators, we would like to use the matrix-free tensor-product preconditioners of Pazner~\cite{pazner2018approximate} and Diosady~\cite{diosady2017tensor}. We begin with implementing the former for matrix-based code. Notice that we do not exploit the efficiency advantages of a matrix-free tensor-product implementation yet, but only focus on the accuracy to discuss their potential.
+
+\subsection*{A Kronecker-SVD Based Preconditioner}
+When solving \eqref{eq:ode} with a DIRK integrator, we get an implicit system of the form 
+\begin{align*}
+(M - h a_{j,j} (G - B)) U_j = M U_0 + h a_{j,j} G_{\textnormal{bound}}(t_j) + h \sum^{j-1}_{l=1} a_{j,l} [(G-B) U + G_{\textnormal{bound}}(t_l)]
+\end{align*}
+at each stage $j$. Notice that the right-hand side can be explicitly computed, such that we arrive at a linear system. Notice that for a SIRK method, it holds that $a_{j,j} = a_{l,l}$ for all $j,l$ such that we always have the same operator on the left, thus can always use the same preconditioner and precompute it only once.
+
+Pazner~\cite{pazner2018approximate} proposes to use a rank-2 Kronecker SVD to do so, i.e. for $A = M - h a_{j,j} (G - B)$ we estimate
+\begin{align*}
+A \approx \sum^r_{j=1} A_j \otimes B_j,
+\end{align*}
+which can be computed via an SVD of a shuffled version $\tilde{A}$ of $A$. The full SVD's cost scales cubicly in the size of the matrix to be estimated. Luckily, there are ways to avoid this, namely the Lanczos SVD and the Randomized SVD. Both reduce the runtime to near squared complexity and deliver near-optimal accuracy with high probability. In his paper, Pazner decides to use the Lanczos algorithm.
+
+\subsection*{Outlook}
+This is a work in progress. Next, we plan on implementing the FDM preconditioner for the matrix case in order to conduct a thorough comparison of all methods discussed. We will then try out a randomized preconditioner based on the RSVD. Depending on the results, an implementation in C++ deal.II will follow as well as an extension to three-dimensional problems.
 
 %%% Bibliography
 \bibliographystyle{alpha}

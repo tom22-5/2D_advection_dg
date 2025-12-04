@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  4 DEC 2025 13:24
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  4 DEC 2025 17:24
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -447,38 +447,66 @@ File: color.cfg 2016/01/02 v1.6 sample color configuration
 Package color Info: Driver file: pdftex.def on input line 149.
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.ltx)
 )
-\c@theorem=\count303
-\c@proposition=\count304
-\c@definition=\count305
-\c@lemma=\count306
-\c@remark=\count307
+(C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/caption\subcaption.sty
+Package: subcaption 2023/02/19 v1.6 Sub-captions (AR)
+
+(C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption.sty
+Package: caption 2023/03/12 v3.6j Customizing captions (AR)
+
+(C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption3.sty
+Package: caption3 2023/03/12 v2.4 caption3 kernel (AR)
+\caption@tempdima=\dimen185
+\captionmargin=\dimen186
+\caption@leftmargin=\dimen187
+\caption@rightmargin=\dimen188
+\caption@width=\dimen189
+\caption@indent=\dimen190
+\caption@parindent=\dimen191
+\caption@hangindent=\dimen192
+Package caption Info: Standard document class detected.
+)
+\c@caption@flags=\count303
+\c@continuedfloat=\count304
+Package caption Info: float package is loaded.
+Package caption Info: hyperref package is loaded.
+)
+Package caption Info: New subtype `subfigure' on input line 239.
+\c@subfigure=\count305
+Package caption Info: New subtype `subtable' on input line 239.
+\c@subtable=\count306
+)
+\c@theorem=\count307
+\c@proposition=\count308
+\c@definition=\count309
+\c@lemma=\count310
+\c@remark=\count311
 
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend-pdf
 tex.def
 File: l3backend-pdftex.def 2022-10-26 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count308
+\l__color_backend_stack_int=\count312
 \l__pdf_internal_box=\box58
 ) (notes.aux)
 \openout1 = `notes.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 34.
+LaTeX Font Info:    ... okay on input line 34.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -518,16 +546,16 @@ LaTeX Font Info:    ... okay on input line 33.
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pdf.mk
 ii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count309
-\scratchdimen=\dimen185
+\scratchcounter=\count313
+\scratchdimen=\dimen193
 \scratchbox=\box59
-\nofMPsegments=\count310
-\nofMParguments=\count311
+\nofMPsegments=\count314
+\nofMParguments=\count315
 \everyMPshowfont=\toks34
-\MPscratchCnt=\count312
-\MPscratchDim=\dimen186
-\MPnumerator=\count313
-\makeMPintoPDFobject=\count314
+\MPscratchCnt=\count316
+\MPscratchDim=\dimen194
+\MPnumerator=\count317
+\makeMPintoPDFobject=\count318
 \everyMPtoPDFconversion=\toks35
 )
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstopdf-b
@@ -540,18 +568,20 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 fg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
-Package hyperref Info: Link coloring OFF on input line 33.
+Package hyperref Info: Link coloring OFF on input line 34.
  (notes.out) (notes.out)
 \@outlinefile=\write3
 \openout3 = `notes.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 40.
+Package caption Info: Begin \AtBeginDocument code.
+Package caption Info: End \AtBeginDocument code.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 41.
 
 
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 40.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 41.
 
 
 (C:\Users\ruhrg\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
@@ -564,56 +594,146 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.43 \end{abstract}
+l.44 \end{abstract}
                     [1]
-Overfull \hbox (4.46582pt too wide) in paragraph at lines 45--45
-|\OT1/cmr/bx/n/17.28 The Dis-con-tin-u-ous Galerkin For Two-Dimensional Lin-
+Overfull \hbox (3.30986pt too wide) in paragraph at lines 46--46
+\OT1/cmr/bx/n/17.28 tion For Two-Dimensional Lin-ear Ad-vec-tion In Python| 
  []
-
-
-Package natbib Warning: Citation `kronbichler2021efficient' on page 1 undefined
- on input line 54.
 
 
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.109 \end{align*}
+l.111 \end{align*}
                    [1]
-Underfull \hbox (badness 10000) in paragraph at lines 149--150
+Underfull \hbox (badness 10000) in paragraph at lines 151--152
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 154--155
+Underfull \hbox (badness 10000) in paragraph at lines 156--157
 
  []
 
 [2]
-Underfull \hbox (badness 10000) in paragraph at lines 159--160
+Underfull \hbox (badness 10000) in paragraph at lines 161--162
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 163--164
+Underfull \hbox (badness 10000) in paragraph at lines 165--166
 
  []
 
 
-LaTeX Warning: Reference `eq:ode' on page 3 undefined on input line 167.
+LaTeX Warning: Reference `eq:ode' on page 3 undefined on input line 169.
 
-(notes.bbl [3]
+
+Package caption Warning: \label without proper reference on input line 181.
+See the caption package documentation for explanation.
+
+
+LaTeX Warning: Reference `fig:exact' on page 3 undefined on input line 177.
+
+<snapshot-0.00.png, id=45, 363.2772pt x 364.4817pt>
+File: snapshot-0.00.png Graphic file (type png)
+<use snapshot-0.00.png>
+Package pdftex.def Info: snapshot-0.00.png  used on input line 185.
+(pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
+<snapshot-0.25.png, id=47, 363.2772pt x 364.4817pt>
+File: snapshot-0.25.png Graphic file (type png)
+<use snapshot-0.25.png>
+Package pdftex.def Info: snapshot-0.25.png  used on input line 191.
+(pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
+<snapshot-0.50.png, id=48, 363.2772pt x 364.4817pt>
+File: snapshot-0.50.png Graphic file (type png)
+<use snapshot-0.50.png>
+Package pdftex.def Info: snapshot-0.50.png  used on input line 197.
+(pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
+<snapshot-0.75.png, id=49, 363.2772pt x 364.4817pt>
+File: snapshot-0.75.png Graphic file (type png)
+<use snapshot-0.75.png>
+Package pdftex.def Info: snapshot-0.75.png  used on input line 203.
+(pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
+<snapshot-1.00.png, id=50, 363.2772pt x 364.4817pt>
+File: snapshot-1.00.png Graphic file (type png)
+<use snapshot-1.00.png>
+Package pdftex.def Info: snapshot-1.00.png  used on input line 209.
+(pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+Package caption Warning: \label without proper reference on input line 282.
+See the caption package documentation for explanation.
+
+
+LaTeX Warning: Reference `fig:explicitresults' on page 3 undefined on input lin
+e 216.
+
+
+Package caption Warning: \label without proper reference on input line 220.
+See the caption package documentation for explanation.
+
+
+LaTeX Warning: Reference `fig:butcherExplicit' on page 3 undefined on input lin
+e 216.
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+<explicit_rk_convergence.png, id=53, 506.3718pt x 393.8715pt>
+File: explicit_rk_convergence.png Graphic file (type png)
+<use explicit_rk_convergence.png>
+Package pdftex.def Info: explicit_rk_convergence.png  used on input line 283.
+(pdftex.def)             Requested size: 385.02547pt x 299.4957pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+Package caption Warning: \label without proper reference on input line 292.
+See the caption package documentation for explanation.
+
+
+LaTeX Warning: Reference `fig:butcherImplicit' on page 3 undefined on input lin
+e 288.
+
+
+Package caption Warning: \label without proper reference on input line 355.
+See the caption package documentation for explanation.
+
+
+LaTeX Warning: Reference `fig:implicitresults' on page 3 undefined on input lin
+e 288.
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+<rk_implicit_convergence.png, id=57, 506.3718pt x 393.8715pt>
+File: rk_implicit_convergence.png Graphic file (type png)
+<use rk_implicit_convergence.png>
+Package pdftex.def Info: rk_implicit_convergence.png  used on input line 356.
+(pdftex.def)             Requested size: 385.02547pt x 299.4957pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+LaTeX Warning: Reference `eq:ode' on page 3 undefined on input line 364.
+
+[3]
+Overfull \vbox (3.49435pt too high) has occurred while \output is active []
+
+
+[4 <./snapshot-0.00.png> <./snapshot-0.25.png> <./snapshot-0.50.png> <./snapsho
+t-0.75.png> <./snapshot-1.00.png>] [5 <./explicit_rk_convergence.png>]
+(notes.bbl [6 <./rk_implicit_convergence.png>]
 Underfull \hbox (badness 1735) in paragraph at lines 5--10
 []\OT1/cmr/m/n/12 Daniel Arndt, Wolf-gang Bangerth, Bruno Blais, Marc Fehling, 
 Rene
  []
 
-)
-
-Package natbib Warning: There were undefined citations.
-
-[4
+) [7
 
 ] (notes.aux)
 
@@ -623,31 +743,34 @@ Package rerunfilecheck Info: File `notes.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 11890 strings out of 476406
- 186511 string characters out of 2789568
- 1866787 words of memory out of 3000000
- 32061 multiletter control sequences out of 15000+600000
- 524158 words of font info for 76 fonts, out of 8000000 for 9000
+ 13394 strings out of 476406
+ 216300 string characters out of 2789568
+ 1878787 words of memory out of 3000000
+ 33535 multiletter control sequences out of 15000+600000
+ 526490 words of font info for 85 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,14n,77p,873b,451s stack positions out of 10000i,1000n,20000p,200000b,80000s
+ 72i,14n,77p,873b,570s stack positions out of 10000i,1000n,20000p,200000b,80000s
 <C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmbx12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmex10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/p
-ublic/amsfonts/cm/cmmi12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/font
-s/type1/public/amsfonts/cm/cmmi6.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiK
-TeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/ruhrg/AppData/Local/Prog
-rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmmib10.pfb><C:/Users/ruhrg/AppData/
-Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/ruhrg/
-AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr17.pfb><C:/User
-s/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><
-C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr
-8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts
-/cm/cmsy10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public
-/amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type
-1/public/amsfonts/cm/cmti12.pfb>
-Output written on notes.pdf (6 pages, 174808 bytes).
+ublic/amsfonts/cm/cmmi10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/font
+s/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/ruhrg/AppData/Local/Programs/Mi
+KTeX/fonts/type1/public/amsfonts/cm/cmmi6.pfb><C:/Users/ruhrg/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/ruhrg/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmib10.pfb><C:/Users/ruhrg
+/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Use
+rs/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb
+><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/c
+mr17.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfo
+nts/cm/cmr6.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/publi
+c/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type
+1/public/amsfonts/cm/cmsy10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/f
+onts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/
+MiKTeX/fonts/type1/public/amsfonts/cm/cmti12.pfb><C:/Users/ruhrg/AppData/Local/
+Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
+Output written on notes.pdf (9 pages, 2628081 bytes).
 PDF statistics:
- 106 PDF objects out of 1000 (max. 8388607)
- 11 named destinations out of 1000 (max. 500000)
- 1 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 172 PDF objects out of 1000 (max. 8388607)
+ 22 named destinations out of 1000 (max. 500000)
+ 36 words of extra memory for PDF output out of 10000 (max. 10000000)
 

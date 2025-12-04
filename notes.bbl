@@ -14,6 +14,25 @@ Laslo~T Diosady and Scott~M Murman.
   discontinuous galerkin methods.
 \newblock {\em Journal of Computational Physics}, 330:296--318, 2017.
 
+\bibitem[Fel25]{2D_advection_dg}
+Tom Feldhausen.
+\newblock 2d\_advection\_dg: Discontinuous galerkin discretization of 2d linear
+  transport.
+\newblock \url{https://github.com/tom22-5/2D_advection_dg}, 2025.
+\newblock Accessed: 2025-10-<day>.
+
+\bibitem[KC16]{kennedy2016diagonally}
+Christopher~A Kennedy and Mark~H Carpenter.
+\newblock Diagonally implicit runge-kutta methods for ordinary differential
+  equations. a review.
+\newblock Technical report, 2016.
+
+\bibitem[KP21]{kronbichler2021efficient}
+Martin Kronbichler and Per-Olof Persson.
+\newblock {\em Efficient high-order discretizations for computational fluid
+  dynamics}.
+\newblock Springer, 2021.
+
 \bibitem[PP18]{pazner2018approximate}
 Will Pazner and Per-Olof Persson.
 \newblock Approximate tensor-product preconditioners for very high order

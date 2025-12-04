@@ -7,7 +7,7 @@ def print_matrix(name, mat):
     with np.printoptions(precision=4, suppress=True):
         print(mat)
         
-def show(evaluate):
+def show(evaluate, time=None):
     # Grid size
     Nx, Ny = 100, 100
 
@@ -31,13 +31,17 @@ def show(evaluate):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("u(x,y)")
-    ax.set_title("DG Solution (3D Surface Plot)")
+    if time is not None:
+        ax.set_title(f"Solution at t = {time}")
+        fig.savefig(f"snapshot-{time:.2f}.png", dpi=300, bbox_inches="tight")
+    else:
+        ax.set_title("Solution")
 
-    plt.show()
-    plt.pause(5)
-
+    # plt.show()
+    plt.close(fig)
+    
 def average(evaluate):
-    Nx, Ny = 100, 100
+    Nx, Ny = 50, 50
 
     # Domain [0,1] x [0,1]
     x = np.linspace(0, 1, Nx)
