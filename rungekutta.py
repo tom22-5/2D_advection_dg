@@ -109,7 +109,7 @@ class RungeKuttaMethod:
         # 3. If not explicit and not DIRK, it's fully implicit
         return "implicit"
 
-    def step(self, operator, F, A0, h, t):
+    def step(self, operator, F, A0, h, t, precondition=False):
         """
         Performs a single time step of the Runge-Kutta method.
         
@@ -175,17 +175,26 @@ class RungeKuttaMethod:
                     # Flatten RHS for GMRES
                     rhs_flat = rhs.reshape(n)
                     gmres_operator = operator.build_operator(self.A[j, j])
-                    preconditioner = operator.build_preconditioner(gmres_operator)
-
-                    # Solve in flat space
-                    Yi_flat, info = gmres(
-                        gmres_operator,
-                        rhs_flat,
-                        M=preconditioner,
-                        rtol=1e-10,
-                        atol=1e-14,
-                        maxiter=50,
-                    )
+                    if precondition:
+                        preconditioner = operator.build_preconditioner(gmres_operator)
+                        # Solve in flat space
+                        Yi_flat, info = gmres(
+                            gmres_operator,
+                            rhs_flat,
+                            M=preconditioner,
+                            rtol=1e-10,
+                            atol=1e-14,
+                            maxiter=50,
+                        )
+                    else:
+                        # Solve in flat space
+                        Yi_flat, info = gmres(
+                            gmres_operator,
+                            rhs_flat,
+                            rtol=1e-10,
+                            atol=1e-14,
+                            maxiter=50,
+                        )
 
                     # Back to DG vector shape
                     Yi = Yi_flat.reshape(n, 1)

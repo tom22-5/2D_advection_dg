@@ -1,0 +1,180 @@
+\documentclass[12pt]{report}
+%%% Packages
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{color}
+%%%
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+%%%
+\setlength{\parindent}{0pt}
+
+
+\begin{document}
+
+\title{Tensor-Product Preconditioner For Very High Order Discontinuous Galerkin Discretizations}
+\author{Tom Feldhausen}
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations turn out to be more efficient in practice. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide an optimized C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a basic matrix-based DG implementation of two-dimensional linear advection with upwind flux.
+\end{abstract}
+
+\section*{The Discontinuous Galerkin For Two-Dimensional Linear Advection}
+As a first step, we provide a matrix-based DG discretization for the two-dimensional linear advection system 
+\begin{align*}
+&\partial_t u(x, t) + a(x,t) \cdot \nabla u(x,t) = 0 \quad \forall x \in [0,1]^2, \quad 0 \leq t \leq T
+\\
+&u(x, 0) = u_0(x) \quad \forall x \in [0,1]^2
+\\
+&u(x, t) = u_{\textnormal{in}}(x) \quad \forall x \in \partial [0, 1]^2
+\end{align*}
+for a solution function $u$. Following Kronbichler and Persson~\cite{kronbichler2021efficient}, we arrive at the weak formulation that for all $v \in H^1(\Omega)$ it needs to hold that
+\begin{align}
+\label{eq:weakform}
+\int_\Omega \partial_t u v - \int_\Omega u a \cdot \nabla v + \int_{\partial \Omega} (a \cdot n) u v = 0,
+\end{align}
+after integrating in space, multiplying by a test function $v$ and integrating by parts.
+
+Now instert basis functions of order $p$, i.e.
+\begin{align*}
+u = \sum^p_{i=0} u_i \Phi_i, v = \sum^p_{j=0} v_j \Phi_j.
+\end{align*}
+Then condition \eqref{eq:weakform} is equivalent to the element-wise formulation for each basis function, i.e.
+\begin{align}
+\int_{\Omega_e} \partial_t u_i(t) \Phi_i \Phi_j - \int_{\Omega_e} u_i \Phi_i a \cdot \nabla \Phi_j + \int_{\partial \Omega_e} (a \cdot n) u_i \Phi_i \Phi_j = 0
+\end{align}
+being true for all $0 \leq i,j \leq p$ and $\Omega_e \subset \Omega$.
+
+Analogously we can write this in matrix form, which yields the system
+\begin{align*}
+\label{eq:ode}
+\frac{dU(t)}{dt} = M^{-1} [(B + G) U + G_{\textnormal{bound}}].
+\end{align*}
+We consider a tensor-product mesh with $N = N_x \times N_y$ rectangular elements. Then $x: \Omega_{\textnormal{ref}} \rightarrow \Omega_e$ maps from the reference element $\Omega_{\textnormal{ref}} = [-1,1]^2$ to the actual element $\Omega_e = [x_0, y_0] \times [x_1, y_1]$ and can be explicitly written as 
+\begin{align*}
+\mathbf{x}(\boldsymbol{\zeta})
+=
+A\,\boldsymbol{\zeta} + \mathbf{b},
+\qquad
+A = \frac{1}{2}
+\begin{pmatrix}
+x_1 - x_0 & 0 \\
+0 & y_1 - y_0
+\end{pmatrix},
+\qquad
+\mathbf{b} = 
+\begin{pmatrix}
+\frac{x_1 + x_0}{2} \\
+\frac{y_1 + y_0}{2}
+\end{pmatrix}.
+\end{align*}
+
+With this at hand, we can explicitly write out the mass matrix as
+\begin{align*}
+M_{ji} = \quad &\int_{\Omega_e} \Phi_j(x) \Phi_i(x) dx
+\\ 
+= \quad &\int^{y_0}_{x_0} \int^{y_1}_{x_1} \Phi_j(x_0, x_1) \Phi_i(x_0, x_1) dx_0 dx_1 
+\\
+= \quad &\int^1_{-1} \int^1_{-1} \Phi_j(\zeta_1, \zeta_2)  \Phi_i(\zeta_1, \zeta_2) \|\operatorname{det}(J^{-1}_e)\| d\zeta_1 d\zeta_2.
+\end{align*}
+
+Using Gauss-Legendre quadrature with one-dimensional weights $w_q$ and points $x_q$, we get the approximation
+\begin{align*}
+M_{ji} = \quad &\int_{\Omega_e} \Phi_j(x) \Phi_i(x) dx
+\\ 
+\approx \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_1}(x_{q_0}) \phi_{i_2}(x_{q_1}) \phi_{j_1}(x_{q_0}) \phi_{j_2}(x_{q_1}) \|(y_0 - x_0) (y_1 - x_1)\|
+\end{align*}
+when inserting the tensor-product form $\Phi_i = \phi_{i_1} \phi_{i_2}$ and exploiting $\|\operatorname{det}(J^{-1}_e)\| = \|(y_0 - x_0) (y_1 - x_1)\|$.
+
+Similarly, we can derive an expression for the volume matrix and calculate
+\begin{align*}
+B_{ji} = \quad &\int_{\Omega_e} \Phi_i (a \cdot \nabla \Phi_j)
+\\
+= \quad &\int^{y_0}_{x_0} \int^{y_1}_{x_1} \Phi_i(z_0, z_1) (a(z_0, z_1, t) \cdot \nabla \Phi_i(z_0, z_1)) dz_0 dz_1 
+\\
+= \quad &\int^{y_0}_{x_0} \int^{y_1}_{x_1} \Phi_i(z_0, z_1) (a_0(z_0, z_1, t) \partial_{z_0} \Phi_i(z_0, z_1) + a_1(z_0, z_1, t) \partial_{z_1} \Phi_i(z_0, z_1)) dz_0 dz_1 
+\\
+= \quad &\int^{-1}_{1} \int^{-1}_{1} \Phi_i(\zeta_0, \zeta_1) (a_0(\zeta_0, \zeta_1, t) \partial_{z_0} \Phi_i(\zeta_0, \zeta_1) + a_1(\zeta_0, \zeta_1, t) \partial_{z_1} \Phi_i(\zeta_0, \zeta_1)) 
+\\ 
+\quad &\|(y_0 - x_0) (y_1 - x_1)\| d\zeta_0 d\zeta_1
+\\
+= \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_1}(x_{q_0}) \phi_{i_2}(x_{q_1}) (a_0(x_{q_0}) \phi'_{j_1}(x_{q_0}) + a_1(x_{q_0}) \phi_{j_1}(x_{q_0}) \phi'_{j_2}(x_{q_1})) \phi_{j_2}(x_{q_1}) 
+\\
+\quad &\|(y_0 - x_0) (y_1 - x_1)\|.
+\end{align*}
+
+The face terms are slightly more difficult to derive as in two dimensions we have four faces that are either interior and face other elements or that are part of the domain boundary. This is why for a specific derivation, we need to choose an explicit flux and face. In this example, we choose an upwind flux for information flow between elements, i.e. 
+\begin{align*}
+\widehat{au}
+=
+\begin{cases}
+(a \cdot n) u^{-}, & a \cdot n > 0, \\[6pt]
+(a \cdot n) u^{+}, & a \leq 0
+\end{cases}
+\end{align*}
+and focus on the left face. As this is one-dimensional, we will only need the $x_1(\zeta)$ part of the transformation, that concerns the $x_1$-axis. The corresponding determinant of the inverse Jacobian is simply $(y_1 - x_1)$ for our tensor-product grid. Generally it holds that 
+\begin{align*}
+&\int_{\partial \Omega_e} \widehat{au}(\Phi_i^R(z), \Phi_i^L(z)) \Phi_j(z) dz
+\\
+= \quad &\int^1_{-1} (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(\zeta) \widehat{au}(\Phi^R_i(zeta), \Phi^L_j(\zeta)) d\zeta
+\\
+\approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) \widehat{au}(u^R_i \phi^R_{j_0}(-1) \phi^R_{j_1}(x_1(x_q)), u^L_i \phi^L_{j_0}(-1) \phi^L_{j_1}(x_1(x_q))).
+\end{align*}
+
+The value of $\widehat{au}(u^R_i \phi^R_{j_0}(-1) \phi^R_{j_1}(x_1(x_q)), u^L_i \phi^L_{j_0}(-1) \phi^L_{j_1}(x_1(x_q)))$ depends on the following cases. 
+
+\textbf{Case 1A: Inflow Boundary.} \\
+\begin{align*}
+{G_{\textnormal{bound}}}_j \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) u(x_0(-1), x_1(x_q), t)
+\end{align*}
+
+\textbf{Case 1B: Outflow Boundary.} \\
+\begin{align*}
+G_{ji^R} \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^R_{i_0}(-1) \phi^R_{j_1}(x_q) u^R_i
+\end{align*}
+
+\textbf{Case 2A: Inflow Interior Face.} \\
+\begin{align*}
+G_{ji^L} \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^L_{i_0}(-1) \phi^L_{j_1}(x_q) u^L_i\end{align*}
+
+\textbf{Case 2B: Outflow Interior.} \\
+\begin{align*}
+G_{ji^R} \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^R_{i_0}(-1) \phi^R_{j_1}(x_q) u^R_i\end{align*}
+
+Now that we set up the semi-discretization in space, we can now focus on time integration. We can evolve \eqref{eq:ode} in time by appling a Runge--Kutta method. In our experiments, we set $N_x = 20, N_y = 20$ and $p=2$. Figure 1 shows the convergence behaviour for different explicit integrators of order 1 to 4.
+
+For implicit DIRK schemes of order 1 to 4, we get the result illustrated in figure 2.
+
+Combining this with the FDM integrator of Diosady yields figure 3.
+
+Using Pazners KSVD-based integrator gives the results in figure 4. 
+
+%%% Bibliography
+\bibliographystyle{alpha}
+\bibliography{references}
+%%%
+
+\end{document}

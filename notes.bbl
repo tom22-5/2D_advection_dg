@@ -1,0 +1,23 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{ABB{\etalchar{+}}24}
+
+\bibitem[ABB{\etalchar{+}}24]{arndt2024deal}
+Daniel Arndt, Wolfgang Bangerth, Bruno Blais, Marc Fehling, Rene
+  Gassm{\"o}ller, Timo Heister, Luca Heltai, Sebastian Kinnewig, Martin
+  Kronbichler, Matthias Maier, et~al.
+\newblock The deal. ii library, version 9.6.
+\newblock {\em Journal of Numerical Mathematics}, 32(4):369--380, 2024.
+
+\bibitem[DM17]{diosady2017tensor}
+Laslo~T Diosady and Scott~M Murman.
+\newblock Tensor-product preconditioners for higher-order space--time
+  discontinuous galerkin methods.
+\newblock {\em Journal of Computational Physics}, 330:296--318, 2017.
+
+\bibitem[PP18]{pazner2018approximate}
+Will Pazner and Per-Olof Persson.
+\newblock Approximate tensor-product preconditioners for very high order
+  discontinuous galerkin methods.
+\newblock {\em Journal of computational physics}, 354:344--369, 2018.
+
+\end{thebibliography}

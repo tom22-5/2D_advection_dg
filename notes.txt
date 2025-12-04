@@ -1,0 +1,3 @@
+- pdf schreiben mit Graphen zu expliziten und impliziten Lösern Ordnung 1-4
+- gmres mit preconditioner zum laufen bringen
+- publikation mit martin bei erfolg

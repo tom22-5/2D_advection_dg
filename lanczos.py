@@ -3,7 +3,7 @@ import numpy as np
 from numpy.polynomial.legendre import leggauss
 import copy
 from numpy.linalg import norm, svd, solve
-from scipy.linalg import schur, lu
+from scipy.linalg import schur, lu, solve_sylvester
 from scipy.optimize import fsolve
 from scipy.sparse.linalg import LinearOperator
 
@@ -170,7 +170,7 @@ def kronecker_svd(A, m1, m2, n1, n2, r, method="lanczos"):
 
     # Step 2: SVD
     if method == "lanczos":
-        U, S, Vt = lanczos_svd(A_tilde, J=r, r=r, tol=1e-10)
+        U, S, Vt = lanczos_svd(A_tilde, J=10, r=r, tol=1e-10)
     else:
         raise ValueError("Invalid method. Must be 'svd' or 'lanczos'.")
 
@@ -212,38 +212,60 @@ def form_2d_preconditioner(A, m1, m2, n1, n2, r):
         "Schur_B": (Q2, T2)
     }
     
-def apply_2d_preconditioner(b, preconditioner, m2, n2):
+def apply_2d_preconditioner(b, preconditioner, m2=None, n2=None):
     """
-    Solve P x = b using the 2D Kronecker preconditioner.
+    Solve (A1 ⊗ B1 + A2 ⊗ B2) x = b using the 2D Kronecker preconditioner
+    via Schur-based Sylvester solve.
 
-    Parameters:
-        b : right-hand side vector of size (m2 * n2,)
-        preconditioner : dictionary from form_2d_preconditioner
-        m2, n2 : inner Kronecker dimensions
-
-    Returns:
-        x : approximate solution to Px = b
+    Parameters
+    ----------
+    b : (N,) array
+        Right-hand side vector, N = dim(A2)*dim(B1).
+    preconditioner : dict
+        Output of form_2d_preconditioner.
+    m2, n2 : unused
+        Kept for API compatibility with your existing test.
     """
-    from scipy.linalg import solve
-
-    # Unpack LU and Schur decompositions
+    # Unpack
     L_A2, U_A2 = preconditioner["LU_A2"]
     L_B1, U_B1 = preconditioner["LU_B1"]
     Q1, T1 = preconditioner["Schur_A"]
     Q2, T2 = preconditioner["Schur_B"]
 
-    # Step 1: Compute b̃ = (A2^{-1} ⊗ B1^{-1}) b
-    B1_inv = solve(U_B1, solve(L_B1, np.eye(L_B1.shape[0])))
-    A2_inv = solve(U_A2, solve(L_A2, np.eye(L_A2.shape[0])))
+    # Dimensions
+    p = U_A2.shape[0]   # dim(A2)
+    q = U_B1.shape[0]   # dim(B1)
+    assert b.size == p * q
 
-    b_tilde = np.kron(A2_inv, B1_inv) @ b
+    # --- Step 1: RHS_mat = B1^{-1} * B_mat * A2^{-T} ---
+    # Interpret b as vec_F(B_mat) with shape (q x p)
+    B_mat = b.reshape(q, p, order="F")
 
-    # Step 2: Solve Sylvester system: (T1 ⊗ I + I ⊗ T2) x̃ = (Q1.T ⊗ Q2.T) b̃
-    b_sylv = np.kron(Q1.T, Q2.T) @ b_tilde
-    A_sylv = np.kron(T1, np.eye(T2.shape[0])) + np.kron(np.eye(T1.shape[0]), T2)
-    x_tilde = solve(A_sylv, b_sylv)
+    # Solve B1 * X = B_mat  →  X = B1^{-1} B_mat
+    tmp = solve(L_B1, B_mat)        # forward
+    tmp = solve(U_B1, tmp)          # backward
 
-    # Step 3: x = (Q1 ⊗ Q2) x̃
-    x = np.kron(Q1, Q2) @ x_tilde
+    # We want RHS_mat = tmp * A2^{-T}.
+    # This is equivalent to solving A2 * Y^T = tmp^T, then Y = RHS_mat.
+    tmp_T = tmp.T
+    Y_T = solve(L_A2, tmp_T)        # forward with A2
+    Y_T = solve(U_A2, Y_T)          # backward with A2
+    RHS_mat = Y_T.T                 # = tmp * A2^{-T}
 
+    # --- Step 2: Transform to Schur basis ---
+    # C2 X + X C1^T = RHS_mat
+    # with C1 = A2^{-1} A1 = Q1 T1 Q1^T, C2 = B1^{-1} B2 = Q2 T2 Q2^T
+    #
+    # Let X = Q2 Y Q1^T. Then
+    #   T2 Y + Y T1^T = Q2^T RHS_mat Q1
+    RHS_hat = Q2.T @ RHS_mat @ Q1
+
+    # --- Step 3: Solve Sylvester T2 Y + Y T1^T = RHS_hat ---
+    Y = solve_sylvester(T2, T1.T, RHS_hat)
+
+    # --- Step 4: Back-transform X = Q2 Y Q1^T ---
+    X = Q2 @ Y @ Q1.T
+
+    # Return vec_F(X)
+    x = X.reshape(p * q, order="F")
     return x
