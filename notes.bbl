@@ -27,6 +27,13 @@ Christopher~A Kennedy and Mark~H Carpenter.
   equations. a review.
 \newblock Technical report, 2016.
 
+\bibitem[KK19]{kronbichler2019fast}
+Martin Kronbichler and Katharina Kormann.
+\newblock Fast matrix-free evaluation of discontinuous galerkin finite element
+  operators.
+\newblock {\em ACM Transactions on Mathematical Software (TOMS)}, 45(3):1--40,
+  2019.
+
 \bibitem[KP21]{kronbichler2021efficient}
 Martin Kronbichler and Per-Olof Persson.
 \newblock {\em Efficient high-order discretizations for computational fluid

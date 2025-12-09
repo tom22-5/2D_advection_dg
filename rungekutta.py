@@ -194,7 +194,7 @@ class RungeKuttaMethod:
         Returns:
             np.array or float: The solution at the new time (t_n+1).
         """
-        
+        avg_iterations = 0
         if self.method_type == "explicit":
             A0 = np.asarray(A0)
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
@@ -220,7 +220,7 @@ class RungeKuttaMethod:
         elif self.method_type == "dirk":
             A0 = np.asarray(A0)       
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
-
+            
             for j in range(self.stage):
                 # Case: first stage explicit (A[0,0] = 0)
                 operator.set_time(t + h * self.c[j])
@@ -240,6 +240,10 @@ class RungeKuttaMethod:
 
                     # Flatten RHS for GMRES
                     rhs_flat = rhs.reshape(n)
+                    iter_count = [0]
+                    def count_iterations(residual):
+                        iter_count[0] += 1
+                        
                     if not preconditioner is None:
                         # Solve in flat space
                         Yi_flat, info = gmres(
@@ -249,7 +253,9 @@ class RungeKuttaMethod:
                             rtol=1e-10,
                             atol=1e-14,
                             maxiter=50,
+                            callback=count_iterations
                         )
+                        # print("GMRES iterations with preconditioner:", iter_count[0])
                     else:
                         # Solve in flat space
                         Yi_flat, info = gmres(
@@ -258,8 +264,11 @@ class RungeKuttaMethod:
                             rtol=1e-10,
                             atol=1e-14,
                             maxiter=50,
+                            callback=count_iterations
                         )
+                        # print("GMRES iterations without preconditioner:", iter_count[0])
 
+                    avg_iterations += iter_count[0]
                     # Back to DG vector shape
                     Yi = Yi_flat.reshape(n, 1)
                     
@@ -275,5 +284,5 @@ class RungeKuttaMethod:
         else:
             raise ValueError("General implicit methods are not implemented.")
         
-        return A1
+        return A1, avg_iterations / self.stage
     

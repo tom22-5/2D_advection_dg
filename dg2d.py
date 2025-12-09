@@ -926,8 +926,8 @@ def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
 
     plt.gca().invert_xaxis()
     plt.xlabel("Time step size h")
-    plt.ylabel("Runtime")
-    plt.title("Runge--Kutta Runtime")
+    plt.ylabel("Average iterations")
+    plt.title("GMRES iterations")
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.legend()
 
@@ -936,9 +936,9 @@ def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
     print(f"Saved {name}.png")
     
 def run_explicit():
-    explicit = True
-    name = "rk_explicit_convergence"
-    name_time = "rk_explicit_runtime"
+    explicit = False
+    name = "a"
+    name_time = "average_iterations_precon"
     t = start_time
     mesh = StructuredMesh2D(Nx, Ny)
     dof_handler = DoFHandler2D(mesh, Nq**2)
@@ -971,23 +971,29 @@ def run_explicit():
                 factor = rk_stepper.A[0, 0]
             elif rk > 1:
                 factor = rk_stepper.A[1, 1]
-            # gmres_operator = operator.build_operator(h * factor)
-            # preconditioner = operator.build_preconditioner(h * factor)
+            gmres_operator = operator.build_operator(h * factor)
+            preconditioner = operator.build_preconditioner(h * factor)
             
             iter = 0 
+            avg_iterations_global = 0
             while t < final_time:
-                U = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=None, preconditioner=None)
+                U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
                 t += h
+                avg_iterations_global += avg_iterations
+                iter += 1
                 err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
                 print(f"Average error at time t={t}: {err}.")
                 
+            avg_iterations_global /= iter
             # compute average error at final time
             end = time.perf_counter()
             err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
             errors[rk].append(abs(err))
-            runtime[rk].append(end - start)
+            # runtime[rk].append(end - start)
+            runtime[rk].append(avg_iterations_global)
+            print(avg_iterations_global)
     
-    plot_explicit_errors(step_sizes, errors, initial_error, name)
+    # plot_explicit_errors(step_sizes, errors, initial_error, name)
     plot_explicit_runtimes(step_sizes, runtime, name_time)
 
 run_explicit()

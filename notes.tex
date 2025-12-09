@@ -40,7 +40,7 @@
 \maketitle
 
 \begin{abstract}
-Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations often turn out to be more efficient in practice. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide an optimized C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a basic matrix-based DG implementation of two-dimensional linear advection with upwind flux.
+Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide an parallelized matrix-free C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a matrix-based DG implementation of two-dimensional linear advection with upwind flux and verify the efficiency of Pazner's preconditioner for implicit time integration.
 \end{abstract}
 
 \section*{A Matrix-Based Discontinuous Galerkin Implementation For Two-Dimensional Linear Advection In Python}
@@ -406,7 +406,7 @@ In our experiments in the same setting as earlier, this yields the following con
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_convergence_precon.png}
+    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
     \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznerresults}
 \end{figure}
@@ -415,14 +415,28 @@ In terms of runtime, we cannot recognise significant speed-up as demonstrated in
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_runtime_precon.png}
+    \includegraphics[width=0.85\textwidth]{average_iterations_precon.png}
     \caption{Runtime of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznertime}
 \end{figure}
 
-Even though we could show Pazner's preconditioner works in terms of accuracy, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner.
+Even though we could show Pazner's preconditioner works in terms of accuracy, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner because figure \ref{} and \ref{} show that the preconditioner is able to reduce the number of iterations significantly. This is definitely a better indicator as the implementations provided are not optimized, but rather educational.
 
-% I should count the number of iterations next.
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
+    \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages without preconditioning.}
+    \label{fig:implicittime}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
+    \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages with Pazner's preconditioner.}
+    \label{fig:paznertime}
+\end{figure}
+
+Notice that we display the average number of iterations per stage. For the 4-stage ESDIRK method with an explicit first stage, we thus divide by 4 even though we only have to solve an implicit system for 3 stages. This is why GMRES appears to perform much better here.
 
 \subsection*{Outlook}
 This is a work in progress. Next, we plan on implementing the FDM preconditioner for the matrix case in order to conduct a thorough comparison of tensor-product preconditioners. We will then try out a randomized preconditioner based on the RSVD. Depending on the results, an implementation in C++ deal.II will follow as well as an extension to three-dimensional problems.
