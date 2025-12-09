@@ -938,7 +938,7 @@ def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
 def run_explicit():
     explicit = False
     name = "a"
-    name_time = "average_iterations_precon"
+    name_time = "average_iterations_implicit"
     t = start_time
     mesh = StructuredMesh2D(Nx, Ny)
     dof_handler = DoFHandler2D(mesh, Nq**2)
@@ -972,12 +972,12 @@ def run_explicit():
             elif rk > 1:
                 factor = rk_stepper.A[1, 1]
             gmres_operator = operator.build_operator(h * factor)
-            preconditioner = operator.build_preconditioner(h * factor)
+            # preconditioner = operator.build_preconditioner(h * factor)
             
             iter = 0 
             avg_iterations_global = 0
             while t < final_time:
-                U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
+                U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=None)
                 t += h
                 avg_iterations_global += avg_iterations
                 iter += 1

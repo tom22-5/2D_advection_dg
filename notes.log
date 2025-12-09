@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  9 DEC 2025 12:54
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  9 DEC 2025 13:11
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -486,11 +486,7 @@ tex.def
 File: l3backend-pdftex.def 2022-10-26 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count312
 \l__pdf_internal_box=\box58
-) (notes.aux
-
-LaTeX Warning: Label `fig:paznertime' multiply defined.
-
-)
+) (notes.aux)
 \openout1 = `notes.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 34.
@@ -708,120 +704,70 @@ Overfull \vbox (3.49435pt too high) has occurred while \output is active []
 [4 <./snapshot-0.00.png> <./snapshot-0.25.png> <./snapshot-0.50.png> <./snapsho
 t-0.75.png> <./snapshot-1.00.png>] [5 <./explicit_rk_convergence.png> <./rk_exp
 licit_runtime.png>]
-
-LaTeX Warning: File `average_iterations_implicit.png' not found on input line 4
-09.
-
-
-! Package pdftex.def Error: File `average_iterations_implicit.png' not found: u
-sing draft setting.
-
-See the pdftex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.409 ...xtwidth]{average_iterations_implicit.png}
-                                                  
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
+<average_iterations_implicit.png, id=98, 517.935pt x 393.8715pt>
+File: average_iterations_implicit.png Graphic file (type png)
+<use average_iterations_implicit.png>
+Package pdftex.def Info: average_iterations_implicit.png  used on input line 40
+9.
+(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 [6]
-
-LaTeX Warning: File `average_iterations_precon.png' not found on input line 418
+<rk_implicit_runtime_precon.png, id=105, 517.935pt x 393.8715pt>
+File: rk_implicit_runtime_precon.png Graphic file (type png)
+<use rk_implicit_runtime_precon.png>
+Package pdftex.def Info: rk_implicit_runtime_precon.png  used on input line 418
 .
-
-
-! Package pdftex.def Error: File `average_iterations_precon.png' not found: usi
-ng draft setting.
-
-See the pdftex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.418 ...textwidth]{average_iterations_precon.png}
-                                                  
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
+(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-
-LaTeX Warning: Reference `' on page 7 undefined on input line 423.
-
-
-LaTeX Warning: Reference `' on page 7 undefined on input line 423.
 
 [7 <./rk_implicit_convergence.png> <./rk_implicit_runtime.png>]
 
-LaTeX Warning: File `average_iterations_implicit.png' not found on input line 4
-27.
+LaTeX Warning: Text page 8 contains only floats.
 
+[8 <./average_iterations_implicit.png> <./rk_implicit_runtime_precon.png>]
+File: average_iterations_implicit.png Graphic file (type png)
+<use average_iterations_implicit.png>
+Package pdftex.def Info: average_iterations_implicit.png  used on input line 42
+7.
+(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
+<average_iterations_precon.png, id=122, 518.1759pt x 393.8715pt>
+File: average_iterations_precon.png Graphic file (type png)
+<use average_iterations_precon.png>
+Package pdftex.def Info: average_iterations_precon.png  used on input line 434.
 
-! Package pdftex.def Error: File `average_iterations_implicit.png' not found: u
-sing draft setting.
-
-See the pdftex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.427 ...xtwidth]{average_iterations_implicit.png}
-                                                  
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-
-LaTeX Warning: File `average_iterations_implicit.png' not found on input line 4
-34.
-
-
-! Package pdftex.def Error: File `average_iterations_implicit.png' not found: u
-sing draft setting.
-
-See the pdftex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.434 ...xtwidth]{average_iterations_implicit.png}
-                                                  
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
+(pdftex.def)             Requested size: 385.02547pt x 292.66835pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-(notes.bbl [8] [9] [10] [11]
+(notes.bbl [9] [10 <./average_iterations_precon.png>]
 Underfull \hbox (badness 1735) in paragraph at lines 5--10
 []\OT1/cmr/m/n/12 Daniel Arndt, Wolf-gang Bangerth, Bruno Blais, Marc Fehling, 
 Rene
  []
 
-) [12
+) [11
 
 ] (notes.aux)
 
-LaTeX Warning: There were undefined references.
-
-
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
 Package rerunfilecheck Info: File `notes.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 13502 strings out of 476406
- 219488 string characters out of 2789568
+ 13448 strings out of 476406
+ 217704 string characters out of 2789568
  1878787 words of memory out of 3000000
- 33614 multiletter control sequences out of 15000+600000
+ 33572 multiletter control sequences out of 15000+600000
  526490 words of font info for 85 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,14n,77p,918b,558s stack positions out of 10000i,1000n,20000p,200000b,80000s
+ 72i,14n,77p,1010b,558s stack positions out of 10000i,1000n,20000p,200000b,80000s
 <C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmbx12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmex10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/p
@@ -840,9 +786,9 @@ c/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type
 onts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/
 MiKTeX/fonts/type1/public/amsfonts/cm/cmti12.pfb><C:/Users/ruhrg/AppData/Local/
 Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
-Output written on notes.pdf (14 pages, 2947561 bytes).
+Output written on notes.pdf (13 pages, 3341609 bytes).
 PDF statistics:
- 212 PDF objects out of 1000 (max. 8388607)
- 35 named destinations out of 1000 (max. 500000)
- 46 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 216 PDF objects out of 1000 (max. 8388607)
+ 34 named destinations out of 1000 (max. 500000)
+ 61 words of extra memory for PDF output out of 10000 (max. 10000000)
 

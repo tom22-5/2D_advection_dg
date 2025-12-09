@@ -60,13 +60,13 @@ for a solution function $u$ and a domain $\Omega = [0,1]^2$. Following Kronbichl
 \end{align}
 after integrating in space, multiplying by a test function $v$ and integrating by parts.
 
-Now instert tensor product basis functions of order $p$, i.e.
+Now insert tensor product basis functions of order $p$, i.e.
 \begin{align*}
-u = \sum^{p^2}_{i=0} u_i \Phi_i, v = \sum^{p^2}_{j=0} v_j \Phi_j.
+u = \sum^{(p+1)^2 - 1}_{i=0} u_i \Phi_i, v = \sum^{(p+1)^2-1}_{j=0} v_j \Phi_j.
 \end{align*}
 Then condition \eqref{eq:weakform} is equivalent to the element-wise formulation for each basis function, i.e.
 \begin{align}
-\int_{\Omega_e} \partial_t u_i(t) \Phi_i \Phi_j - \int_{\Omega_e} u_i \Phi_i a \cdot \nabla \Phi_j + \int_{\partial \Omega_e} (a \cdot n) u_i \Phi_i \Phi_j = 0
+\sum_i \int_{\Omega_e} \partial_t u_i(t) \Phi_i \Phi_j - \int_{\Omega_e} u_i \Phi_i a \cdot \nabla \Phi_j + \int_{\partial \Omega_e} (a \cdot n) u_i \Phi_i \Phi_j = 0
 \end{align}
 being true for all $0 \leq i,j \leq ^2p$ and $\Omega_e \subset \Omega$.
 
@@ -415,25 +415,25 @@ In terms of runtime, we cannot recognise significant speed-up as demonstrated in
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{average_iterations_precon.png}
+    \includegraphics[width=0.85\textwidth]{rk_implicit_runtime_precon.png}
     \caption{Runtime of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznertime}
 \end{figure}
 
-Even though we could show Pazner's preconditioner works in terms of accuracy, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner because figure \ref{} and \ref{} show that the preconditioner is able to reduce the number of iterations significantly. This is definitely a better indicator as the implementations provided are not optimized, but rather educational.
+Even though we could show Pazner's preconditioner works in terms of accuracy, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner because figure \ref{fig:implicititer} and \ref{fig:pazneriter} show that the preconditioner is able to reduce the number of iterations significantly. This is definitely a better indicator as the implementations provided are not optimized, but rather educational.
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages without preconditioning.}
-    \label{fig:implicittime}
+    \label{fig:implicititer}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
+    \includegraphics[width=0.85\textwidth]{average_iterations_precon.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages with Pazner's preconditioner.}
-    \label{fig:paznertime}
+    \label{fig:pazneriter}
 \end{figure}
 
 Notice that we display the average number of iterations per stage. For the 4-stage ESDIRK method with an explicit first stage, we thus divide by 4 even though we only have to solve an implicit system for 3 stages. This is why GMRES appears to perform much better here.
