@@ -38,33 +38,63 @@ def rk_scheme(rk, explicit = True):
             c = [0]
     else:
         if rk == 4:
+            gamma = 0.435866521508
+
             A = [
-                [0.0,          0.0,          0.0,          0.0],
-                [3/4,          3/4,          0.0,          0.0],
-                [447/675,     -357/675,      855/675,      0.0],
-                [13/42,        84/42,       -125/42,       70/42],
+                [0.0,             0.0,             0.0,            0.0],
+                [gamma,           gamma,           0.0,            0.0],
+                [
+                    (-4 * np.square(gamma) + 6 * gamma -1) / (4 * gamma),
+                    (-2 * gamma + 1) / (4 * gamma), 
+                    gamma,
+                    0.0
+                ],
+                [
+                    (6 * gamma - 1) / (12 * gamma),    
+                    (-1) / ((24 * gamma - 12) * gamma),
+                    (-6 * np.square(gamma) + 6 * gamma - 1) / (6 * gamma - 3), 
+                    gamma
+                ]
             ]
 
-            b = [13/42, 84/42, -125/42, 70/42]
-
-            c = [0.0, 3/2, 7/5, 1.0]
-        elif rk == 3:
-            A = [
-                [0.0,       0.0,       0.0],
-                [3/4,       3/4,       0.0],
-                [7/18,     -4/18,     15/18]
+            b = [
+                (6 * gamma - 1) / (12 * gamma),    
+                (-1) / ((24 * gamma - 12) * gamma),
+                (-6 * np.square(gamma) + 6 * gamma - 1) / (6 * gamma - 3), 
+                gamma
             ]
 
-            b = [7/18, -4/18, 15/18]
-
-            c = [0.0, 3/2, 1.0]
-        elif rk == 2: # Trapezoidal
+            c = [0.0,
+                2*gamma,
+                1.0,
+                1.0]
+        elif rk == 3: # SDIRK-NC34
+            gamma = (3 + 2 * np.sqrt(3) * np.cos(np.pi / 18)) / 6
             A = [
-                [0, 0],
-                [0.5, 0.5]
+                [gamma,       0.0,       0.0],
+                [1/2 - gamma,       gamma,       0.0],
+                [2 * gamma,     1 - 4 * gamma,     gamma]
             ]
-            b = [0, 0.5]
-            c = [0, 1]
+
+            b = [
+                1 / (6 * np.square(1 - 2 * gamma)), 
+                (2 * (1 - 6 * gamma + 6 * np.square(gamma))) / (3 * np.square(2 * gamma - 1)),
+                1 / (6 * np.square(1 - 2 * gamma))
+            ]
+
+            c = [
+                gamma,
+                1 / 2,
+                1 - gamma   
+            ]
+        elif rk == 2: # SDIRK-NCS23
+            gamma = (3 + np.sqrt(3)) / 6
+            A = [
+                [gamma, 0],
+                [1 - 2 * gamma , gamma]
+            ]
+            b = [1/2, 1/2]
+            c = [gamma, 1 - gamma]
         else: # Implicit Euler
             A = [[1]]
             b = [1]
@@ -145,7 +175,7 @@ class RungeKuttaMethod:
         # 3. If not explicit and not DIRK, it's fully implicit
         return "implicit"
 
-    def step(self, operator, F, A0, h, t, precondition=False):
+    def step(self, operator, F, A0, h, t, gmres_operator=None, preconditioner=None):
         """
         Performs a single time step of the Runge-Kutta method.
         
@@ -203,16 +233,14 @@ class RungeKuttaMethod:
                         sum_prev += self.A[j, l] * K_stages[l]
 
                     # rhs = A0 + h * sum_{l<j} A[j,l] K_l + h * A[j,j] * Gbound
-                    rhs = A0 + h * sum_prev + h * self.A[j, j] * operator.M_inv @ operator.Gbound
+                    rhs = A0 + h * sum_prev - h * self.A[j, j] * operator.M_inv @ operator.Gbound
 
                     # Define GMRES linear operator: v -> v - h * A[j,j] * M_inv (B^T - G) v
                     n = operator.ndofs
 
                     # Flatten RHS for GMRES
                     rhs_flat = rhs.reshape(n)
-                    gmres_operator = operator.build_operator(self.A[j, j])
-                    if precondition:
-                        preconditioner = operator.build_preconditioner(gmres_operator)
+                    if not preconditioner is None:
                         # Solve in flat space
                         Yi_flat, info = gmres(
                             gmres_operator,

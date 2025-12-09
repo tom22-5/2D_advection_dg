@@ -14,13 +14,14 @@ from dofhandler import DoFHandler2D
 from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative
 from scipy.sparse.linalg import gmres, LinearOperator
 from lanczos import form_2d_preconditioner, apply_2d_preconditioner, lanczos_svd, kronecker_svd
+import time
 
 # Hyperparameters
 dim = 2
 courant_number = 0.2
 flux_alpha = 1.0
 start_time = 0
-final_time = 1
+final_time = 0.1
 output_tick = 0.1
 mesh_type = "cartesian"
 precontioner_type = "svd"
@@ -40,10 +41,10 @@ Nq = fe_degree + 1
 basis_type = "lagrange"
 
 # Hyperparameters time integration
-explicit = True
+explicit = False
 preconditioner = "pazner"
 rk = 1
-h = 0.005
+h = 0.001
 
 # exact solution at time = 0
 def initial_solution(x1, x2):
@@ -312,7 +313,7 @@ class AdvectionOperator:
                     else: # outflow
                         for li, gi in enumerate(dofs_cell):
                             self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
-                            
+      
   def set_time(self, t):
       # everything is time-independent except for Gbound, because the boundary condition depends on time
       if self.time == t:
@@ -379,15 +380,15 @@ class AdvectionOperator:
 
     def matvec(v_flat):
         v = v_flat.reshape(n, 1)
-        w = v - h * factor * (
-            self.M_inv @ ((self.B.T - self.G) @ v)
+        w = v - factor * (
+            self.M_inv @ ((self.B - self.G) @ v)
         )
         return w.reshape(n)
     
     def rmatvec(v_flat):
         v = v_flat.reshape(n, 1)
-        w = v - h * factor * (
-            (self.B - self.G.T) @ self.M_inv.T @ v
+        w = v - factor * (
+            (self.B.T - self.G.T) @ self.M_inv.T @ v
         )
         return w.reshape(n)
 
@@ -399,22 +400,45 @@ class AdvectionOperator:
     )
     return linear_operator
   
-  def build_preconditioner(self, operator):
-    n = self.ndofs   
-    k = int(np.round(np.sqrt(n)))
-    precon_dict = form_2d_preconditioner(operator, k, k, k, k, 2)
-    def precond(v_flat):
-        v = v_flat.reshape(n, 1)
-        w = apply_2d_preconditioner(v, precon_dict, k, k)
-        return w.reshape(n)
+  def build_preconditioner(self, factor):
+    precon_dicts = {}
 
-    preconditioner = LinearOperator(
-        shape=(n, n),
-        matvec=precond,
-        dtype=float
-    ) 
+    for (ii, jj), dofs in self.dofhandler.iter_cells():
+        e = (ii, jj)
+        dofs = np.array(dofs)
+        Mloc = self.M_inv[np.ix_(dofs, dofs)]
+        Bloc = self.B    [np.ix_(dofs, dofs)]
+        Gloc = self.G    [np.ix_(dofs, dofs)]
+        
+        def loc_matvec(v_loc):
+            return v_loc - factor * (
+                Mloc @ ((Bloc - Gloc) @ v_loc)
+            )
+                    
+        local_operator = LinearOperator(
+            shape=(Nq**2, Nq**2),
+            matvec=loc_matvec,
+            dtype=float
+        )
 
-    return preconditioner
+        A_list, B_list, _ = kronecker_svd(local_operator, Nq, Nq, Nq, Nq, r=2)
+        # A_approx = sum(np.kron(A_list[j], B_list[j]) for j in range(2))
+        # err = np.linalg.norm(A_approx - np.eye(Nq**2) - factor * self.M_inv[np.ix_(dofs, dofs)] @ (self.B[np.ix_(dofs, dofs)] - self.G[np.ix_(dofs, dofs)]))
+        # print(f"Error for element {e}: {err}.")
+        precon_dicts[e] = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, 2)
+        
+    def matvec(v):
+        v = v.reshape(self.ndofs)
+        w = np.zeros(self.ndofs)
+        
+        for (ii, jj), dofs in self.dofhandler.iter_cells():
+            e = (ii, jj)
+            v_local = v[dofs]
+            w[dofs] = apply_2d_preconditioner(v_local, precon_dicts[e])
+        
+        return w
+
+    return LinearOperator(shape=(self.ndofs, self.ndofs),matvec=matvec, dtype=float)
 
 def run():
     t = start_time
@@ -462,7 +486,7 @@ def run():
     
     iter = 0
     while t < final_time:
-        U = rk_stepper.step(operator, F, A0=U , h=h, t=t, precondition=True)
+        U = rk_stepper.step(operator, F, A0=U , h=h, t=t, precondition=False)
         t += h
         iter += 1
         error.append(average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t)))
@@ -894,9 +918,27 @@ def plot_explicit_errors(step_sizes, errors, initial_error, name="rk_convergence
     plt.close()
     print(f"Saved {name}.png")
     
+def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
+    plt.figure(figsize=(8, 6))
+
+    for rk in [1, 2, 3, 4]:
+        plt.loglog(step_sizes, errors[rk], marker='o', label=f"RK{rk}")
+
+    plt.gca().invert_xaxis()
+    plt.xlabel("Time step size h")
+    plt.ylabel("Runtime")
+    plt.title("Runge--Kutta Runtime")
+    plt.grid(True, which="both", ls="--", alpha=0.5)
+    plt.legend()
+
+    plt.savefig(f"{name}.png", dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved {name}.png")
+    
 def run_explicit():
-    explicit = False
-    name = "rk_implicit_convergence"
+    explicit = True
+    name = "rk_explicit_convergence"
+    name_time = "rk_explicit_runtime"
     t = start_time
     mesh = StructuredMesh2D(Nx, Ny)
     dof_handler = DoFHandler2D(mesh, Nq**2)
@@ -907,11 +949,13 @@ def run_explicit():
     initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
     print(f"Average distance: {initial_error}")
             
-    step_sizes = [0.005]
+    step_sizes = [0.01, 0.005]
     errors = {1: [], 2: [], 3: [], 4: []}
+    runtime = {1: [], 2: [], 3: [], 4: []}
     for rk in [1, 2, 3, 4]:
         for h in step_sizes:
             print(f"Running experiment: rk={rk}, h={h}.")
+            start = time.perf_counter()
             t = start_time
             operator.set_time(t)
             U = operator.interpolate(t)
@@ -922,14 +966,28 @@ def run_explicit():
                 operator.set_time(t)
                 return operator.apply(A)
             
+            factor = 0
+            if rk_stepper.A[0, 0] != 0:
+                factor = rk_stepper.A[0, 0]
+            elif rk > 1:
+                factor = rk_stepper.A[1, 1]
+            # gmres_operator = operator.build_operator(h * factor)
+            # preconditioner = operator.build_preconditioner(h * factor)
+            
+            iter = 0 
             while t < final_time:
-                U = rk_stepper.step(operator, F, A0=U , h=h, t=t, precondition=False)
+                U = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=None, preconditioner=None)
                 t += h
+                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                print(f"Average error at time t={t}: {err}.")
                 
             # compute average error at final time
+            end = time.perf_counter()
             err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
             errors[rk].append(abs(err))
+            runtime[rk].append(end - start)
     
     plot_explicit_errors(step_sizes, errors, initial_error, name)
+    plot_explicit_runtimes(step_sizes, runtime, name_time)
 
-run_explicit() 
+run_explicit()
