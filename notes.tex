@@ -73,7 +73,7 @@ being true for all $0 \leq i,j \leq ^2p$ and $\Omega_e \subset \Omega$.
 Analogously we can write this in matrix form, which yields the system
 \begin{align}
 \label{eq:ode}
-\frac{dU(t)}{dt} = M^{-1} [(B + G) U + G_{\textnormal{bound}}].
+\frac{dU(t)}{dt} = M^{-1} [(B - G) U - G_{\textnormal{bound}}].
 \end{align}
 We consider a tensor-product mesh with $N = N_x \times N_y$ rectangular elements. Then $x: \Omega_{\textnormal{ref}} \rightarrow \Omega_e$ maps from the reference element $\Omega_{\textnormal{ref}} = [-1,1]^2$ to the actual element $\Omega_e = [x_0, x_1] \times [y_0, y_1]$ and can be explicitly written as 
 \begin{align*}
@@ -98,73 +98,74 @@ With this at hand, we can explicitly write out the mass matrix as
 \begin{align*}
 M_{ji} = \quad &\int_{\Omega_e} \Phi_j(z) \Phi_i(z) dz
 \\ 
-= \quad &\int^{x_0}_{x_1} \int^{y_0}_{y_1} \Phi_j(z_0, z_1) \Phi_i(z_0, z_1) dz_0 dz_1 
+= \quad &\int^{x_1}_{x_0} \int^{y_1}_{y_0} \Phi_j(z_0, z_1) \Phi_i(z_0, z_1) dz_0 dz_1 
 \\
-= \quad &\int^1_{-1} \int^1_{-1} \Phi_j(\zeta_1, \zeta_2)  \Phi_i(\zeta_1, \zeta_2) \|\operatorname{det}(J^{-1}_e)\| d\zeta_1 d\zeta_2.
+= \quad &\int^1_{-1} \int^1_{-1} \Phi_j(\zeta_1, \zeta_2)  \Phi_i(\zeta_1, \zeta_2) \|\operatorname{det}(J_e)\| d\zeta_1 d\zeta_2,
 \end{align*}
 
-Using Gauss-Legendre quadrature with one-dimensional weights $w_q$ and points $x_q$, we get the approximation
+where $J_e$ denotes the Jacobian of the reference to element transformation $x(\zeta)$. Using Gauss-Legendre quadrature with one-dimensional weights $w_q = w_{q_0} w_{q_1}$ and points $x_q = (x_{q_0}, x_{q_1})$, we get the approximation
 \begin{align*}
 M_{ji} = \quad &\int_{\Omega_e} \Phi_j(z) \Phi_i(z) dz
 \\ 
-\approx \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_1}(x_{q_0}) \phi_{i_2}(x_{q_1}) \phi_{j_1}(x_{q_0}) \phi_{j_2}(x_{q_1}) \frac{1}{4} (x_1 - x_0) (y_1 - y_0)
+\approx \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_0}(x_{q_0}) \phi_{i_1}(x_{q_1}) \phi_{j_0}(x_{q_0}) \phi_{j_1}(x_{q_1}) \frac{1}{4} (x_1 - x_0) (y_1 - y_0)
 \end{align*}
-when inserting the tensor-product form $\Phi_i = \phi_{i_1} \phi_{i_2}$ and exploiting $\|\operatorname{det}(J^{-1}_e)\| = \frac{1}{4} (x_1 - x_0) (y_1 - y_0)$.
+when inserting the tensor-product form $\Phi_i = \phi_{i_0} \phi_{i_1}$ and exploiting $\|\operatorname{det}(J_e)\| = \frac{1}{4} (x_1 - x_0) (y_1 - y_0)$.
 
 Similarly, we can derive an expression for the volume matrix and calculate
 \begin{align*}
-B_{ji} = \quad &\int_{\Omega_e} \Phi_i(z) (a \cdot \nabla \Phi_j(z)) dz
+B_{ji} = \quad &\int_{\Omega_e} \Phi_i(z) (a(z, t) \cdot \nabla \Phi_j(z)) dz
 \\
-= \quad &\int^{x_0}_{x_1} \int^{y_1}_{y_0} \Phi_i(z_0, z_1) (a(z_0, z_1, t) \cdot \nabla \Phi_j(z_0, z_1)) dz_0 dz_1 
+= \quad &\int^{x_1}_{x_0} \int^{y_1}_{y_0} \Phi_i(z_0, z_1) (a(z_0, z_1, t) \cdot \nabla \Phi_j(z_0, z_1)) dz_0 dz_1 
 \\
-= \quad &\int^{-1}_{1} \int^{-1}_{1} \Phi_i(\zeta_0, \zeta_1) (a(z_0, z_1, t) \cdot J_e \nabla \Phi_j(\zeta_0, \zeta_1)) d\zeta_0 d\zeta_1 
+= \quad &\int^{1}_{-1} \int^{1}_{-1} \Phi_i(\zeta_0, \zeta_1) (a(z_0, z_1, t) \cdot J^{-1}_e \nabla \Phi_j(\zeta_0, \zeta_1)) \|\operatorname{det}(J_e)\| d\zeta_0 d\zeta_1 
 \\ 
-= \quad &\int^{-1}_{1} \int^{-1}_{1} \Phi_i(\zeta_0, \zeta_1) (2 (x_1 - x_0)^{-1} a_0(z_0, z_1, t) \partial_{\zeta_0} \Phi_j(\zeta_0, \zeta_1) + 2 (y_1 - y_0)^{-1} a_1(z_0, z_1, t) \partial_{\zeta_1} \Phi_i(\zeta_0, \zeta_1)) 
+= \quad &\int^{1}_{-1} \int^{1}_{-1} \Phi_i(\zeta_0, \zeta_1) [2 (x_1 - x_0)^{-1} a_0(z_0, z_1, t) \partial_{\zeta_0} \Phi_j(\zeta_0, \zeta_1) + 2 (y_1 - y_0)^{-1}
 \\ 
-\quad &\frac{1}{4} (x_1 - x_0) (y_1 - y_0) d\zeta_0 d\zeta_1
+\quad &a_1(z_0, z_1, t) \partial_{\zeta_1} \Phi_j(\zeta_0, \zeta_1)]  \frac{1}{4} (x_1 - x_0) (y_1 - y_0) d\zeta_0 d\zeta_1
 \\
-= \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_1}(x_{q_0}) \phi_{i_2}(x_{q_1}) (a_0(z_{q_0}, z_{q_1}, t) \phi'_{j_1}(x_{q_0}) + a_1(z_{q_0}, z_{q_1}, t) \phi_{j_1}(x_{q_0}) \phi'_{j_2}(x_{q_1}) \phi_{j_2}(x_{q_1}))
+= \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_0}(x_{q_0}) \phi_{i_1}(x_{q_1}) [\frac{1}{2} (y_1 - y_0) a_0(z_{q_0}, z_{q_1}, t) \phi'_{j_0}(x_{q_0}) \phi_{j_1}(x_{q_1}) 
 \\
-\quad &\frac{1}{4} (x_1 - x_0) (y_1 - y_0).
+\quad &+ \frac{1}{2} (x_1 - x_0) a_1(z_{q_0}, z_{q_1}, t) \phi_{j_0}(x_{q_0}) \phi'_{j_1}(x_{q_1})].
 \end{align*}
 
-The face terms are slightly more difficult to derive as in two dimensions we have four faces that are either interior and face other elements or that are part of the domain boundary. This is why for a specific derivation, we need to choose an explicit flux and face. In this example, we choose an upwind flux for information flow between elements, i.e. 
+We write $z_k = x(\zeta_k)$. The face terms are slightly more difficult to derive as in two dimensions we have four faces that are either interior and face other elements or that are part of the domain boundary. This is why for a specific derivation, we need to choose an explicit flux and face. In this example, we choose an upwind flux for information flow between elements, i.e. 
 \begin{align*}
 \widehat{au}
 =
 \begin{cases}
 (a \cdot n) u^{-}, & a \cdot n > 0, \\[6pt]
-(a \cdot n) u^{+}, & a \leq 0
+(a \cdot n) u^{+}, & a \cdot n \leq 0
 \end{cases}
 \end{align*}
-and focus on the left face. As this is one-dimensional, we will only need the $x_1(\zeta)$ part of the transformation, that concerns the $x_1$-axis. The corresponding determinant of the inverse Jacobian is simply $(y_1 - y_0)$ for our tensor-product grid. Generally it holds that 
+and focus on the left face. As this is one-dimensional, we will only need the second $x_1(\zeta)$ part of the transformation, that concerns the $x_1$-axis. The corresponding determinant of the inverse Jacobian is simply $(y_1 - y_0)$ for our tensor-product grid. Generally it holds that 
 \begin{align*}
 &\int_{\partial \Omega_e} \widehat{au}(\Phi_i^R(z), \Phi_i^L(z)) \Phi_j(z) dz
 \\
-= \quad &\int^1_{-1} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(\zeta) \widehat{au}(\Phi^R_i(zeta), \Phi^L_j(\zeta)) d\zeta
+= \quad &\int^1_{-1} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(\zeta) \widehat{au}(\Phi^R_i(\zeta), \Phi^L_i(\zeta)) d\zeta
 \\
-\approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) \widehat{au}(u^R_i \phi^R_{j_0}(-1) \phi^R_{j_1}(x_1(x_q)), u^L_i \phi^L_{j_0}(-1) \phi^L_{j_1}(x_1(x_q))).
+\approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) \widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q))).
 \end{align*}
 
-The value of $\widehat{au}(u^R_i \phi^R_{j_0}(-1) \phi^R_{j_1}(x_1(x_q)), u^L_i \phi^L_{j_0}(-1) \phi^L_{j_1}(x_1(x_q)))$ depends on the following cases. 
+The value of $\widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q)))$ depends on the following cases. 
 
 \textbf{Case 1A: Inflow Boundary.} \\
 \begin{align*}
-{G_{\textnormal{bound}}}_j \approx \quad &\sum_q w_q (y_1 - x_1) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) u(x_0(-1), x_1(x_q), t)
+{G_{\textnormal{bound}}}_j \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n u(x_0(-1), x_1(x_q), t)
 \end{align*}
 
 \textbf{Case 1B: Outflow Boundary.} \\
 \begin{align*}
-G_{ji^R} \approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^R_{i_0}(-1) \phi^R_{j_1}(x_q) u^R_i
+G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
 \end{align*}
 
 \textbf{Case 2A: Inflow Interior Face.} \\
 \begin{align*}
-G_{ji^L} \approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^L_{i_0}(-1) \phi^L_{j_1}(x_q) u^L_i\end{align*}
+G_{ji^L} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^L_{i_0}(-1) \phi^L_{i_1}(x_q) u^L_i\end{align*}
 
 \textbf{Case 2B: Outflow Interior.} \\
 \begin{align*}
-G_{ji^R} \approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \phi^R_{i_0}(-1) \phi^R_{j_1}(x_q) u^R_i\end{align*}
+G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
+\end{align*}
 
 Now that we set up the semi-discretization in space, we can now focus on time integration. We can evolve \eqref{eq:ode} in time by appling a Runge--Kutta method. In our experiments, we set $N_x = 10, N_y = 10$ and $p=3$. We choose Gauss-Legendre quadrature for Lagrangian elements
 \begin{align*}
