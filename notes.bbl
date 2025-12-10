@@ -21,6 +21,11 @@ Tom Feldhausen.
 \newblock \url{https://github.com/tom22-5/2D_advection_dg}, 2025.
 \newblock Accessed: 2025-10-<day>.
 
+\bibitem[GVL13]{G13}
+Gene~H Golub and Charles~F Van~Loan.
+\newblock {\em Matrix computations}.
+\newblock JHU press, 2013.
+
 \bibitem[KC16]{kennedy2016diagonally}
 Christopher~A Kennedy and Mark~H Carpenter.
 \newblock Diagonally implicit runge-kutta methods for ordinary differential
@@ -45,5 +50,11 @@ Will Pazner and Per-Olof Persson.
 \newblock Approximate tensor-product preconditioners for very high order
   discontinuous galerkin methods.
 \newblock {\em Journal of computational physics}, 354:344--369, 2018.
+
+\bibitem[TW23]{T23}
+Joel~A. Tropp and Robert~J. Webber.
+\newblock Randomized algorithms for low-rank matrix approximation: Design,
+  analysis, and applications.
+\newblock {\em arXiv preprint arXiv:2306.12418}, 2023.
 
 \end{thebibliography}

@@ -40,7 +40,7 @@
 \maketitle
 
 \begin{abstract}
-Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide an parallelized matrix-free C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a matrix-based DG implementation of two-dimensional linear advection with upwind flux and verify the efficiency of Pazner's preconditioner for implicit time integration.
+Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners. This project aims to compare the tensor-product preconditioners of Diosady~\cite{diosady2017tensor} and Pazner~\cite{pazner2018approximate} for the example of linear advection and provide a parallelized matrix-free C++ deal.II~\cite{arndt2024deal} implemenation. As a first step, we provide a matrix-based DG implementation of two-dimensional linear advection with upwind flux and verify the efficiency of Pazner's preconditioner for implicit time integration.
 \end{abstract}
 
 \section*{A Matrix-Based Discontinuous Galerkin Implementation For Two-Dimensional Linear Advection In Python}
@@ -60,22 +60,22 @@ for a solution function $u$ and a domain $\Omega = [0,1]^2$. Following Kronbichl
 \end{align}
 after integrating in space, multiplying by a test function $v$ and integrating by parts.
 
-Now insert tensor product basis functions of order $p$, i.e.
+Now insert basis functions of order $p$, i.e.
 \begin{align*}
 u = \sum^{(p+1)^2 - 1}_{i=0} u_i \Phi_i, v = \sum^{(p+1)^2-1}_{j=0} v_j \Phi_j.
 \end{align*}
 Then condition \eqref{eq:weakform} is equivalent to the element-wise formulation for each basis function, i.e.
 \begin{align}
-\sum_i \int_{\Omega_e} \partial_t u_i(t) \Phi_i \Phi_j - \int_{\Omega_e} u_i \Phi_i a \cdot \nabla \Phi_j + \int_{\partial \Omega_e} (a \cdot n) u_i \Phi_i \Phi_j = 0
+\sum_i \int_{\Omega_e} \partial_t u_i \Phi_i \Phi_j - \int_{\Omega_e} u_i \Phi_i a \cdot \nabla \Phi_j + \int_{\partial \Omega_e} (a \cdot n) u_i \Phi_i \Phi_j = 0
 \end{align}
-being true for all $0 \leq i,j \leq ^2p$ and $\Omega_e \subset \Omega$.
+being true for all $0 \leq j \leq (p+1)^2$ and $\Omega_e \subset \Omega$.
 
 Analogously we can write this in matrix form, which yields the system
 \begin{align}
 \label{eq:ode}
 \frac{dU(t)}{dt} = M^{-1} [(B - G) U - G_{\textnormal{bound}}].
 \end{align}
-We consider a tensor-product mesh with $N = N_x \times N_y$ rectangular elements. Then $x: \Omega_{\textnormal{ref}} \rightarrow \Omega_e$ maps from the reference element $\Omega_{\textnormal{ref}} = [-1,1]^2$ to the actual element $\Omega_e = [x_0, x_1] \times [y_0, y_1]$ and can be explicitly written as 
+We consider a tensor-product mesh with $N = N_x \times N_y$ rectangular elements. Then $x: \Omega_{\textnormal{ref}} \rightarrow \Omega_e$ maps from the reference element $\Omega_{\textnormal{ref}} = [-1,1]^2$ to the actual element $\Omega_e = [x_0, x_1] \times [y_0, y_1]$ and can be explicitly written as the affine transformation
 \begin{align*}
 \mathbf{x}(\boldsymbol{\zeta})
 =
@@ -119,16 +119,16 @@ B_{ji} = \quad &\int_{\Omega_e} \Phi_i(z) (a(z, t) \cdot \nabla \Phi_j(z)) dz
 \\
 = \quad &\int^{1}_{-1} \int^{1}_{-1} \Phi_i(\zeta_0, \zeta_1) (a(z_0, z_1, t) \cdot J^{-1}_e \nabla \Phi_j(\zeta_0, \zeta_1)) \|\operatorname{det}(J_e)\| d\zeta_0 d\zeta_1 
 \\ 
-= \quad &\int^{1}_{-1} \int^{1}_{-1} \Phi_i(\zeta_0, \zeta_1) [2 (x_1 - x_0)^{-1} a_0(z_0, z_1, t) \partial_{\zeta_0} \Phi_j(\zeta_0, \zeta_1) + 2 (y_1 - y_0)^{-1}
+= \quad &\int^{1}_{-1} \int^{1}_{-1} \Phi_i(\zeta_0, \zeta_1) [2 (x_1 - x_0)^{-1} a_0(x(\zeta), t) \partial_{\zeta_0} \Phi_j(\zeta_0, \zeta_1) + 2 (y_1 - y_0)^{-1}
 \\ 
-\quad &a_1(z_0, z_1, t) \partial_{\zeta_1} \Phi_j(\zeta_0, \zeta_1)]  \frac{1}{4} (x_1 - x_0) (y_1 - y_0) d\zeta_0 d\zeta_1
+\quad &a_1(x(\zeta), t) \partial_{\zeta_1} \Phi_j(\zeta_0, \zeta_1)]  \frac{1}{4} (x_1 - x_0) (y_1 - y_0) d\zeta_0 d\zeta_1
 \\
-= \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_0}(x_{q_0}) \phi_{i_1}(x_{q_1}) [\frac{1}{2} (y_1 - y_0) a_0(z_{q_0}, z_{q_1}, t) \phi'_{j_0}(x_{q_0}) \phi_{j_1}(x_{q_1}) 
+= \quad &\sum_{q_0} \sum_{q_1} w_{q_0} w_{q_1} \phi_{i_0}(x_{q_0}) \phi_{i_1}(x_{q_1}) [\frac{1}{2} (y_1 - y_0) a_0(x(x_q), t) \phi'_{j_0}(x_{q_0}) \phi_{j_1}(x_{q_1}) 
 \\
-\quad &+ \frac{1}{2} (x_1 - x_0) a_1(z_{q_0}, z_{q_1}, t) \phi_{j_0}(x_{q_0}) \phi'_{j_1}(x_{q_1})].
+\quad &+ \frac{1}{2} (x_1 - x_0) a_1(x(x_q), t) \phi_{j_0}(x_{q_0}) \phi'_{j_1}(x_{q_1})].
 \end{align*}
 
-We write $z_k = x(\zeta_k)$. The face terms are slightly more difficult to derive as in two dimensions we have four faces that are either interior and face other elements or that are part of the domain boundary. This is why for a specific derivation, we need to choose an explicit flux and face. In this example, we choose an upwind flux for information flow between elements, i.e. 
+The face terms are slightly more difficult to derive as in two dimensions we have four faces that are either interior and face other elements or that are part of the domain boundary. This is why for a specific derivation, we need to choose an explicit flux and face. In this example, we choose an upwind flux for information flow between elements, i.e. 
 \begin{align*}
 \widehat{au}
 =
@@ -137,45 +137,46 @@ We write $z_k = x(\zeta_k)$. The face terms are slightly more difficult to deriv
 (a \cdot n) u^{+}, & a \cdot n \leq 0
 \end{cases}
 \end{align*}
-and focus on the left face. As this is one-dimensional, we will only need the second $x_1(\zeta)$ part of the transformation, that concerns the $x_1$-axis. The corresponding determinant of the inverse Jacobian is simply $(y_1 - y_0)$ for our tensor-product grid. Generally it holds that 
+and focus on the left face. $u^{-}$ denotes the exterior value, for the left face also written as $u^{L}$, and $u^{+}$ denotes the interior value, for the left face also written as $u^{R}$. As this is one-dimensional, we will only need the second $x_1(\zeta)$ part of the transformation that concerns the $x_1$-axis because the $x_0$-value is fixed. The corresponding determinant of the inverse Jacobian is simply $\frac{1}{2}(y_1 - y_0)$ for our tensor-product grid. Generally it holds that 
 \begin{align*}
 &\int_{\partial \Omega_e} \widehat{au}(\Phi_i^R(z), \Phi_i^L(z)) \Phi_j(z) dz
 \\
-= \quad &\int^1_{-1} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(\zeta) \widehat{au}(\Phi^R_i(\zeta), \Phi^L_i(\zeta)) d\zeta
+= \quad &\int^1_{-1} \frac{1}{2}(y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(\zeta) \widehat{au}(\Phi^R_i(\zeta), \Phi^L_i(\zeta)) d\zeta
 \\
-\approx \quad &\sum_q w_q (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) \widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q))).
+\approx \quad &\sum_q w_q \frac{1}{2}(y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) \widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q))),
 \end{align*}
+where $w_q, x_q$ are one-dimensional quadrature weights and points.
 
-The value of $\widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q)))$ depends on the following cases. 
+The value of $\widehat{au}(u^R_i \phi^R_{i_0}(-1) \phi^R_{i_1}(x_1(x_q)), u^L_i \phi^L_{i_0}(-1) \phi^L_{i_1}(x_1(x_q)))$ depends on the following cases, we write the first and second component of our reference to element mapping as $x_0$ and $x_1$. 
 
 \textbf{Case 1A: Inflow Boundary.} \\
 \begin{align*}
-{G_{\textnormal{bound}}}_j \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n u(x_0(-1), x_1(x_q), t)
+{G_{\textnormal{bound}}}_j \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) u(x_0(-1), x_1(x_q), t)
 \end{align*}
 
 \textbf{Case 1B: Outflow Boundary.} \\
 \begin{align*}
-G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
+G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
 \end{align*}
 
 \textbf{Case 2A: Inflow Interior Face.} \\
 \begin{align*}
-G_{ji^L} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^L_{i_0}(-1) \phi^L_{i_1}(x_q) u^L_i\end{align*}
+G_{ji^L} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) \phi^L_{i_0}(-1) \phi^L_{i_1}(x_q) u^L_i\end{align*}
 
 \textbf{Case 2B: Outflow Interior.} \\
 \begin{align*}
-G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) a(x_0(-1), x_1(x_q), t) \cdot n \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
+G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) \phi^R_{i_0}(-1) \phi^R_{i_1}(x_q) u^R_i
 \end{align*}
 
-Now that we set up the semi-discretization in space, we can now focus on time integration. We can evolve \eqref{eq:ode} in time by appling a Runge--Kutta method. In our experiments, we set $N_x = 10, N_y = 10$ and $p=3$. We choose Gauss-Legendre quadrature for Lagrangian elements
+Notice that the outflow cases 1B and 2B yield the same formula. Now that we have set up the semi-discretization in space, we can turn our attention to time integration. We can evolve \eqref{eq:ode} in time by applying a Runge--Kutta method. In our experiments, we set $N_x = 10, N_y = 10$ and $p=3$. We choose Gauss-Legendre quadrature with $N_q = p + 1$ 1D quadrature nodes for Lagrange elements
 \begin{align*}
 \phi_i(x) = \prod_{j \neq i} \frac{x - x_j}{x_i - x_j}
 \end{align*}
-and set
+and define the exact solution to be
 \begin{align*}
-&u(x_0, x_1, t) = sin(2 \Pi (x_0 - t)) sin(2 \Pi (x_1 - t))
+&u(x_0, x_1, t) = sin(2 \pi (x_0 - t)) sin(2 \pi (x_1 - t)),
 \end{align*}
-with the corresponding Dirichlet condition to define the linear advection system for $0 \leq t \leq T = 1$. Figure \ref{fig:exact} shows different snapshots of the perfect solution. It is evident that the solution at final time and initial time is the same.
+with the corresponding initial and boundary Dirichlet conditions. Figure \ref{fig:exact} shows different snapshots of the exact solution. It is evident that the solution at final time and initial time is the same for $T=1$. For our experiments, we chose $T=0.1$ and measure the error in the Euclidean norm.
 
 \begin{figure}[h!]
     \centering
@@ -213,7 +214,7 @@ with the corresponding Dirichlet condition to define the linear advection system
     \label{fig:exact}    
 \end{figure}
 
-Figure \ref{fig:explicitresults} shows the convergence behaviour for the different explicit integrators of order 1 to 4 from figure \ref{fig:butcherExplicit}. As expected, the higher the order of the method, the bigger is the stable step size for our problem.
+Figure \ref{fig:explicitresults} shows the convergence behaviour for the different explicit integrators of order 1 to 4 listed in figure \ref{fig:butcherExplicit}. As expected, the higher the order of the method, the more accurate is the solution with respect to the step size. It is also no surprise that the runtime of higher order methods is larger for a fixed step size as shown in figure \ref{fig:explicitruntime}.
 
 \begin{figure}[h!]
     \centering
@@ -279,7 +280,7 @@ Figure \ref{fig:explicitresults} shows the convergence behaviour for the differe
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{explicit_rk_convergence.png}
+    \includegraphics[width=0.85\textwidth]{rk_explicit_convergence.png}
     \caption{Convergence of explicit Runge--Kutta methods with 1 to 4 stages.}
     \label{fig:explicitresults}
 \end{figure}
@@ -291,7 +292,7 @@ Figure \ref{fig:explicitresults} shows the convergence behaviour for the differe
     \label{fig:explicitruntime}
 \end{figure}
 
-A DIRK scheme is an implicit Runge--Kutta method with $A_{ij} = 0$ for all $j>i$. SDIRK methods further fulfill $A_{ii} = A_{jj}$ for all $i,j \leq s$, where $s$ denotes the number of stages. For implicit SDIRK schemes~\cite{kennedy2016diagonally} of order 1 to 4 from figure \ref{fig:butcherImplicit}, we get the result illustrated in figure \ref{fig:implicitresults}.
+A DIRK scheme is an implicit Runge--Kutta method with $a_{ij} = 0$ for all $j>i$. SDIRK methods further fulfill $a_{ii} = a_{jj}$ for all $i,j \leq s$, where $s$ denotes the number of stages. For the implicit SDIRK schemes~\cite{kennedy2016diagonally} with 1 to 4 stages from figure \ref{fig:butcherImplicit}, we get the convergence results illustrated in figure \ref{fig:implicitresults}. Clearly, the implicit methods deliver more accurate results for larger step sizes. However, figure \ref{fig:implicitruntime} shows that this comes at the expense of a longer runtime.
 
 \begin{figure}[h!]
     \centering
@@ -319,7 +320,7 @@ A DIRK scheme is an implicit Runge--Kutta method with $A_{ij} = 0$ for all $j>i$
                     & \tfrac12 & \tfrac12
         \end{array}
         \]
-        \caption{SDIRK2--NCS23 (order 2)}
+        \caption{SDIRK2--NCS23 (order 3), $\gamma = (3 + \sqrt{3}) / 6$~\cite[p. 27]{kennedy2016diagonally}}
     \end{subfigure}
 
     \vspace{1em}
@@ -339,7 +340,7 @@ A DIRK scheme is an implicit Runge--Kutta method with $A_{ij} = 0$ for all $j>i$
             \tfrac{1}{6(1-2\gamma)^2}
         \end{array}
         \]
-        \caption{SDIRK3--NC34 (order 3)}
+        \caption{SDIRK3--NC34 (order 4), $\gamma = \frac{3 + 2 \sqrt{3} cos(\Pi / 18)}{6}$~\cite[p. 27]{kennedy2016diagonally}}
     \end{subfigure}
     \hfill
 
@@ -388,31 +389,32 @@ A DIRK scheme is an implicit Runge--Kutta method with $A_{ij} = 0$ for all $j>i$
     \label{fig:implicitruntime}
 \end{figure}
 
-In order to speed up the implicit integrators, we would like to use the matrix-free tensor-product preconditioners of Pazner~\cite{pazner2018approximate} and Diosady~\cite{diosady2017tensor}. We begin with implementing the former for matrix-based code. Notice that we do not exploit the efficiency advantages of a matrix-free tensor-product implementation yet, but only focus on the accuracy to discuss their potential.
+In order to address this issue and speed up the implicit integrators, we would like to use the matrix-free tensor-product preconditioners of Pazner~\cite{pazner2018approximate} and Diosady~\cite{diosady2017tensor} for the linear system arising during implicit time integration. We begin with implementing the former for matrix-based code. Notice that we do not exploit the efficiency advantages of a matrix-free tensor-product implementation yet.
 
 \subsection*{A Kronecker-SVD Based Preconditioner}
 When solving \eqref{eq:ode} with a DIRK integrator, we get an implicit system of the form 
 \begin{align*}
-(M - h a_{j,j} (G - B)) U_j = M U_0 + h a_{j,j} G_{\textnormal{bound}}(t_j) + h \sum^{j-1}_{l=1} a_{j,l} [(G-B) U + G_{\textnormal{bound}}(t_l)]
+(M - h a_{jj} (B - G)) U_j = M U_0 - h a_{jj} G_{\textnormal{bound}}(t_j) + h \sum^{j-1}_{l=1} a_{jl} [(B - G) U - G_{\textnormal{bound}}(t_l)]
 \end{align*}
-at each stage $j$. Notice that the right-hand side can be explicitly computed, such that we arrive at a linear system. Notice that for a SDIRK method, it holds that $a_{j,j} = a_{l,l}$ for all $j,l$ such that we always have the same operator on the left, thus can always use the same preconditioner and precompute it only once.
+at each stage $j$. Notice that the right-hand side can be explicitly computed, such that we arrive at a linear system. Notice that for a SDIRK method, it holds that $a_{jj} = a_{ll}$ for all $j,l$ such that we always have the same operator on the left, thus can always use the same preconditioner and precompute it only once.
 
-Pazner~\cite{pazner2018approximate} proposes to use an element-wise rank-2 Kronecker SVD to do so, i.e. for $A_e = M_e - h a_{j,j} (G_e - B_e)$ we estimate
-\begin{align*}
+Pazner~\cite{pazner2018approximate} proposes to use an element-wise rank-2 Kronecker SVD to do so, i.e. for $A_e = M_e - h a_{jj} (G_e - B_e)$ we estimate
+\begin{align}
+\label{eq:ksvd}
 A_e \approx \sum^r_{j=1} A_j \otimes B_j,
-\end{align*}
-which can be computed via an SVD of a shuffled version $\tilde{A}_e$ of $A_e$. The full SVD's cost scales cubicly in the size of the matrix to be estimated. Luckily, there are ways to avoid this, namely the Lanczos SVD and the Randomized SVD. Both reduce the runtime to near squared complexity and deliver near-optimal accuracy with high probability. In his paper, Pazner decides to use the Lanczos algorithm.
+\end{align}
+which can be computed via an SVD of a shuffled version $\tilde{A}_e$ of $A_e$. The full SVD's cost scales cubicly in the size of the matrix to be estimated, see \cite[Ch. 8.6]{G13}. Luckily, there are ways to avoid this, namely the Lanczos SVD and the Randomized SVD~\cite{T23}. Both reduce the runtime to near squared complexity and deliver near-optimal accuracy with high probability. In his paper, Pazner decides to use the Lanczos algorithm. For $r=2$, the approximation \eqref{eq:ksvd} can be inverted effiently by analytical means, see \cite[Ch. 4]{pazner2018approximate}.
 
 In our experiments in the same setting as earlier, this yields the following convergence behaviour. Accuracy-wise, we expectedly get the same results as we only changed the preconditioner, see figure \ref{fig:paznerresults}.
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
+    \includegraphics[width=0.85\textwidth]{rk_implicit_convergence_precon.png}
     \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznerresults}
 \end{figure}
 
-In terms of runtime, we cannot recognise significant speed-up as demonstrated in figure \ref{fig:paznertime}.
+In terms of runtime, we cannot recognise a significant speed-up as demonstrated in figure \ref{fig:paznertime}.
 
 \begin{figure}[h!]
     \centering
@@ -421,7 +423,7 @@ In terms of runtime, we cannot recognise significant speed-up as demonstrated in
     \label{fig:paznertime}
 \end{figure}
 
-Even though we could show Pazner's preconditioner works in terms of accuracy, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner because figure \ref{fig:implicititer} and \ref{fig:pazneriter} show that the preconditioner is able to reduce the number of iterations significantly. This is definitely a better indicator as the implementations provided are not optimized, but rather educational.
+Even though we could show Pazner's preconditioner works as we have the same convergence behaviour, the results could not convince with respect to runtime. However, this is probably because a final time of 0.1 and a number of elements as small as 100 do not rectify the extra expense of assembling the preconditioner because figure \ref{fig:implicititer} and \ref{fig:pazneriter} show that the preconditioner is able to reduce the number of iterations significantly. This is definitely a better indicator as the implementations provided are not optimized, but rather educational.
 
 \begin{figure}[h!]
     \centering
@@ -440,7 +442,7 @@ Even though we could show Pazner's preconditioner works in terms of accuracy, th
 Notice that we display the average number of iterations per stage. For the 4-stage ESDIRK method with an explicit first stage, we thus divide by 4 even though we only have to solve an implicit system for 3 stages. This is why GMRES appears to perform much better here.
 
 \subsection*{Outlook}
-This is a work in progress. Next, we plan on implementing the FDM preconditioner for the matrix case in order to conduct a thorough comparison of tensor-product preconditioners. We will then try out a randomized preconditioner based on the RSVD. Depending on the results, an implementation in C++ deal.II will follow as well as an extension to three-dimensional problems.
+This is a work in progress. Next, we plan on implementing the FDM preconditioner~\cite{diosady2017tensor} for the matrix case in order to conduct a thorough comparison of tensor-product preconditioners. We will then try out a randomized preconditioner based on the RSVD. Depending on the results, an implementation in C++ deal.II will follow as well as an extension to three-dimensional problems.
 
 %%% Bibliography
 \bibliographystyle{alpha}

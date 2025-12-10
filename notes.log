@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  9 DEC 2025 22:06
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  10 DEC 2025 09:12
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -607,49 +607,49 @@ been already used, duplicate ignored
                    \relax 
 l.111 \end{align*}
                    [1] [2]
-Underfull \hbox (badness 10000) in paragraph at lines 151--152
+Underfull \hbox (badness 10000) in paragraph at lines 152--153
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 156--157
+Underfull \hbox (badness 10000) in paragraph at lines 157--158
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 161--162
+Underfull \hbox (badness 10000) in paragraph at lines 162--163
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 165--166
+Underfull \hbox (badness 10000) in paragraph at lines 166--167
 
  []
 
 <snapshot-0.00.png, id=49, 363.2772pt x 364.4817pt>
 File: snapshot-0.00.png Graphic file (type png)
 <use snapshot-0.00.png>
-Package pdftex.def Info: snapshot-0.00.png  used on input line 184.
+Package pdftex.def Info: snapshot-0.00.png  used on input line 185.
 (pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
 <snapshot-0.25.png, id=51, 363.2772pt x 364.4817pt>
 File: snapshot-0.25.png Graphic file (type png)
 <use snapshot-0.25.png>
-Package pdftex.def Info: snapshot-0.25.png  used on input line 190.
+Package pdftex.def Info: snapshot-0.25.png  used on input line 191.
 (pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
 <snapshot-0.50.png, id=52, 363.2772pt x 364.4817pt>
 File: snapshot-0.50.png Graphic file (type png)
 <use snapshot-0.50.png>
-Package pdftex.def Info: snapshot-0.50.png  used on input line 196.
+Package pdftex.def Info: snapshot-0.50.png  used on input line 197.
 (pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
 <snapshot-0.75.png, id=53, 363.2772pt x 364.4817pt>
 File: snapshot-0.75.png Graphic file (type png)
 <use snapshot-0.75.png>
-Package pdftex.def Info: snapshot-0.75.png  used on input line 202.
+Package pdftex.def Info: snapshot-0.75.png  used on input line 203.
 (pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
 <snapshot-1.00.png, id=54, 363.2772pt x 364.4817pt>
 File: snapshot-1.00.png Graphic file (type png)
 <use snapshot-1.00.png>
-Package pdftex.def Info: snapshot-1.00.png  used on input line 208.
+Package pdftex.def Info: snapshot-1.00.png  used on input line 209.
 (pdftex.def)             Requested size: 144.95303pt x 145.43416pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
@@ -657,90 +657,90 @@ LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-<explicit_rk_convergence.png, id=57, 506.3718pt x 393.8715pt>
-File: explicit_rk_convergence.png Graphic file (type png)
-<use explicit_rk_convergence.png>
-Package pdftex.def Info: explicit_rk_convergence.png  used on input line 282.
-(pdftex.def)             Requested size: 385.02547pt x 299.4957pt.
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-<rk_explicit_runtime.png, id=58, 517.935pt x 393.8715pt>
-File: rk_explicit_runtime.png Graphic file (type png)
-<use rk_explicit_runtime.png>
-Package pdftex.def Info: rk_explicit_runtime.png  used on input line 289.
-(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-<rk_implicit_convergence.png, id=62, 506.8536pt x 393.8715pt>
-File: rk_implicit_convergence.png Graphic file (type png)
-<use rk_implicit_convergence.png>
-Package pdftex.def Info: rk_implicit_convergence.png  used on input line 379.
+<rk_explicit_convergence.png, id=58, 506.8536pt x 393.8715pt>
+File: rk_explicit_convergence.png Graphic file (type png)
+<use rk_explicit_convergence.png>
+Package pdftex.def Info: rk_explicit_convergence.png  used on input line 283.
 (pdftex.def)             Requested size: 385.02547pt x 299.2012pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-<rk_implicit_runtime.png, id=63, 517.935pt x 393.8715pt>
+<rk_explicit_runtime.png, id=59, 517.935pt x 393.8715pt>
+File: rk_explicit_runtime.png Graphic file (type png)
+<use rk_explicit_runtime.png>
+Package pdftex.def Info: rk_explicit_runtime.png  used on input line 290.
+(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+<rk_implicit_convergence.png, id=68, 506.8536pt x 393.8715pt>
+File: rk_implicit_convergence.png Graphic file (type png)
+<use rk_implicit_convergence.png>
+Package pdftex.def Info: rk_implicit_convergence.png  used on input line 380.
+(pdftex.def)             Requested size: 385.02547pt x 299.2012pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+<rk_implicit_runtime.png, id=69, 517.935pt x 393.8715pt>
 File: rk_implicit_runtime.png Graphic file (type png)
 <use rk_implicit_runtime.png>
-Package pdftex.def Info: rk_implicit_runtime.png  used on input line 386.
+Package pdftex.def Info: rk_implicit_runtime.png  used on input line 387.
 (pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-[3]
-Overfull \vbox (3.49435pt too high) has occurred while \output is active []
-
-
-[4 <./snapshot-0.00.png> <./snapshot-0.25.png> <./snapshot-0.50.png> <./snapsho
-t-0.75.png> <./snapshot-1.00.png>] [5 <./explicit_rk_convergence.png> <./rk_exp
-licit_runtime.png>]
-<average_iterations_implicit.png, id=98, 517.935pt x 393.8715pt>
-File: average_iterations_implicit.png Graphic file (type png)
-<use average_iterations_implicit.png>
-Package pdftex.def Info: average_iterations_implicit.png  used on input line 41
-0.
-(pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
-
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-[6]
-<rk_implicit_runtime_precon.png, id=105, 517.935pt x 393.8715pt>
+[3] [4 <./snapshot-0.00.png> <./snapshot-0.25.png> <./snapshot-0.50.png> <./sna
+pshot-0.75.png> <./snapshot-1.00.png>] [5 <./rk_explicit_convergence.png> <./rk
+_explicit_runtime.png>] [6] [7 <./rk_implicit_convergence.png> <./rk_implicit_r
+untime.png>]
+<rk_implicit_convergence_precon.png, id=119, 506.8536pt x 393.8715pt>
+File: rk_implicit_convergence_precon.png Graphic file (type png)
+<use rk_implicit_convergence_precon.png>
+Package pdftex.def Info: rk_implicit_convergence_precon.png  used on input line
+ 412.
+(pdftex.def)             Requested size: 385.02547pt x 299.2012pt.
+<rk_implicit_runtime_precon.png, id=121, 517.935pt x 393.8715pt>
 File: rk_implicit_runtime_precon.png Graphic file (type png)
 <use rk_implicit_runtime_precon.png>
-Package pdftex.def Info: rk_implicit_runtime_precon.png  used on input line 419
+Package pdftex.def Info: rk_implicit_runtime_precon.png  used on input line 421
 .
 (pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-[7 <./rk_implicit_convergence.png> <./rk_implicit_runtime.png>]
-
-LaTeX Warning: Text page 8 contains only floats.
-
-[8 <./average_iterations_implicit.png> <./rk_implicit_runtime_precon.png>]
+<average_iterations_implicit.png, id=124, 517.935pt x 393.8715pt>
 File: average_iterations_implicit.png Graphic file (type png)
 <use average_iterations_implicit.png>
-Package pdftex.def Info: average_iterations_implicit.png  used on input line 42
-8.
+Package pdftex.def Info: average_iterations_implicit.png  used on input line 43
+0.
 (pdftex.def)             Requested size: 385.02547pt x 292.81259pt.
-<average_iterations_precon.png, id=122, 518.1759pt x 393.8715pt>
-File: average_iterations_precon.png Graphic file (type png)
-<use average_iterations_precon.png>
-Package pdftex.def Info: average_iterations_precon.png  used on input line 435.
-
-(pdftex.def)             Requested size: 385.02547pt x 292.66835pt.
-
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-(notes.bbl [9] [10 <./average_iterations_precon.png>]
+<average_iterations_precon.png, id=125, 518.1759pt x 393.8715pt>
+File: average_iterations_precon.png Graphic file (type png)
+<use average_iterations_precon.png>
+Package pdftex.def Info: average_iterations_precon.png  used on input line 437.
+
+(pdftex.def)             Requested size: 385.02547pt x 292.66835pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+[8 <./rk_implicit_convergence_precon.png>]
+
+LaTeX Warning: Text page 9 contains only floats.
+
+[9 <./rk_implicit_runtime_precon.png> <./average_iterations_implicit.png>]
+Overfull \hbox (3.54924pt too wide) in paragraph at lines 445--446
+\OT1/cmr/m/n/12 This is a work in progress. Next, we plan on im-ple-ment-ing th
+e FDM pre-con-di-tioner [[]]
+ []
+
+(notes.bbl [10 <./average_iterations_precon.png>]
 Underfull \hbox (badness 1735) in paragraph at lines 5--10
 []\OT1/cmr/m/n/12 Daniel Arndt, Wolf-gang Bangerth, Bruno Blais, Marc Fehling, 
 Rene
@@ -753,13 +753,13 @@ Package rerunfilecheck Info: File `notes.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 13448 strings out of 476406
- 217704 string characters out of 2789568
- 1879787 words of memory out of 3000000
- 33572 multiletter control sequences out of 15000+600000
+ 13465 strings out of 476406
+ 218078 string characters out of 2789568
+ 1880787 words of memory out of 3000000
+ 33585 multiletter control sequences out of 15000+600000
  526490 words of font info for 85 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,14n,77p,1010b,558s stack positions out of 10000i,1000n,20000p,200000b,80000s
+ 72i,14n,77p,1009b,558s stack positions out of 10000i,1000n,20000p,200000b,80000s
 <C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmbx12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmex10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/p
@@ -778,9 +778,9 @@ c/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type
 onts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/
 MiKTeX/fonts/type1/public/amsfonts/cm/cmti12.pfb><C:/Users/ruhrg/AppData/Local/
 Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
-Output written on notes.pdf (13 pages, 3342163 bytes).
+Output written on notes.pdf (13 pages, 3506220 bytes).
 PDF statistics:
- 216 PDF objects out of 1000 (max. 8388607)
- 34 named destinations out of 1000 (max. 500000)
- 61 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 235 PDF objects out of 1000 (max. 8388607)
+ 37 named destinations out of 1000 (max. 500000)
+ 66 words of extra memory for PDF output out of 10000 (max. 10000000)
 
