@@ -17,7 +17,7 @@ import os
 dim = 2
 flux_alpha = 1.0
 start_time = 0
-final_time = 0.1
+final_time = 1.0
 flux = "upwind"
 
 # Hyperparameters grid
