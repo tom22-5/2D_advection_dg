@@ -1,30 +1,23 @@
 # Imports
-import math
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.polynomial.legendre import leggauss
-import copy
-from numpy.linalg import norm, svd, solve
-from scipy.optimize import fsolve
+from numpy.linalg import norm, svd
 from legendre import legendre, legendre_derivative, gauss_legendre
 from lanczos import lanczos_svd, kronecker_svd
 from rungekutta import rk_scheme, RungeKuttaMethod
 from mesh import StructuredMesh2D
 from dofhandler import DoFHandler2D
 from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative
-from scipy.sparse.linalg import gmres, LinearOperator
+from scipy.sparse.linalg import LinearOperator
 from lanczos import form_2d_preconditioner, apply_2d_preconditioner, lanczos_svd, kronecker_svd
 import time
+import os
 
 # Hyperparameters
 dim = 2
-courant_number = 0.2
 flux_alpha = 1.0
 start_time = 0
 final_time = 0.1
-output_tick = 0.1
-mesh_type = "cartesian"
-precontioner_type = "svd"
 flux = "upwind"
 
 # Hyperparameters grid
@@ -39,12 +32,6 @@ dy = Ly / Ny
 fe_degree = 3
 Nq = fe_degree + 1
 basis_type = "lagrange"
-
-# Hyperparameters time integration
-explicit = False
-preconditioner = "pazner"
-rk = 1
-h = 0.001
 
 # exact solution at time = 0
 def initial_solution(x1, x2):
@@ -440,63 +427,6 @@ class AdvectionOperator:
 
     return LinearOperator(shape=(self.ndofs, self.ndofs),matvec=matvec, dtype=float)
 
-def run():
-    t = start_time
-    mesh = StructuredMesh2D(Nx, Ny)
-    dof_handler = DoFHandler2D(mesh, Nq**2)
-    cell_operator = CellWiseOperator(mesh)
-    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
-    operator.assemble_system()
-    # print_matrix("M", operator.M)
-    # print_matrix("M_inv", operator.M_inv)
-    # print_matrix("B", operator.B)
-    # print_matrix("G", operator.G)
-    # print_matrix("Gbound", operator.Gbound)
-    
-    rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
-    rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
-    U = operator.interpolate(t)
-    # print_matrix("U", U)
-    
-    #show(lambda x, y: operator.evaluate_function(U, x, y))
-    #show(lambda x, y: initial_solution(x, y))
-    #show(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
-    error = []
-    error.append(average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y)))
-    print(f"Midpoint distance: {np.abs(operator.evaluate_function(U, 0.5, 0.5) - initial_solution(0.5, 0.5))}.")
-    print(f"Average distance: {error[0]}")
-    # show(lambda x, y: operator.evaluate_function(U, x, y))
-    
-    def F(t, A):
-        operator.set_time(t)
-        return operator.apply(A)
-    
-    # test 4: integration
-    # # Forward Euler reference
-    # RHS = F(0.0, U)
-    # U_FE = U + h * RHS
-
-    # # RK4 step
-    # rk_A, rk_b, rk_c = rk_scheme(rk=4, explicit=True)
-    # rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
-    # U_RK4 = rk_stepper.step("", F, A0=U, h=h, t=0.0) 
-    # diff_FE_RK4 = U_FE - U_RK4
-    # print("||U_FE - U_RK4|| =", norm(diff_FE_RK4))
-    # return
-    
-    iter = 0
-    while t < final_time:
-        U = rk_stepper.step(operator, F, A0=U , h=h, t=t, precondition=False)
-        t += h
-        iter += 1
-        error.append(average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t)))
-        # show(lambda x, y: operator.evaluate_function(U, x, y)) 
-        # show(lambda x, y: exact_solution(x, y, t)) 
-        if iter % 1 == 0:
-            print(f"Average error in iteration {iter}: {error[iter]}.")
-            
-    # show(lambda x, y: operator.evaluate_function(U, x, y))
-  
 ### tests
 # test 1: constant solution
 def test_constant_solution():
@@ -887,13 +817,12 @@ def test_application():
     res = np.linalg.norm(P_approx @ x_sylv - vec)
     print("Residual ||P_approx x_sylv - b|| =", res)
 
-# experiment 1
+### experiments
 def make_snapshots():
     for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
         show(lambda x, y: exact_solution(x, y, t), t) 
 
-# experiment 2: explicit methods
-def plot_explicit_errors(step_sizes, errors, initial_error, name="rk_convergence"):
+def plot_errors(step_sizes, errors, initial_error, name="rk_convergence"):
     plt.figure(figsize=(8, 6))
 
     for rk in [1, 2, 3, 4]:
@@ -914,11 +843,36 @@ def plot_explicit_errors(step_sizes, errors, initial_error, name="rk_convergence
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.legend()
 
+    save_dir = "./plots"
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f"{name}.png")
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
     plt.savefig(f"{name}.png", dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved {name}.png")
     
-def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
+def plot_runtimes(step_sizes, errors, name="rk_runtime"):
+    plt.figure(figsize=(8, 6))
+
+    for rk in [1, 2, 3, 4]:
+        plt.loglog(step_sizes, errors[rk], marker='o', label=f"RK{rk}")
+
+    plt.gca().invert_xaxis()
+    plt.xlabel("Time step size h")
+    plt.ylabel("Runtime")
+    plt.title("Runge--Kutta Runtime")
+    plt.grid(True, which="both", ls="--", alpha=0.5)
+    plt.legend()
+
+    save_dir = "./plots"
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f"{name}.png")
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved {name}.png")
+    
+def plot_iterations(step_sizes, errors, name="rk_iterations"):
     plt.figure(figsize=(8, 6))
 
     for rk in [1, 2, 3, 4]:
@@ -931,14 +885,17 @@ def plot_explicit_runtimes(step_sizes, errors, name="rk_runtime"):
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.legend()
 
-    plt.savefig(f"{name}.png", dpi=300, bbox_inches="tight")
+    save_dir = "./plots"
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f"{name}.png")
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved {name}.png")
-    
+   
 def run_explicit():
-    explicit = False
-    name = "a"
-    name_time = "average_iterations_implicit"
+    explicit = True
+    name = "rk_explicit_convergence"
+    name_time = "rk_explicit_runtime"
     t = start_time
     mesh = StructuredMesh2D(Nx, Ny)
     dof_handler = DoFHandler2D(mesh, Nq**2)
@@ -949,9 +906,60 @@ def run_explicit():
     initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
     print(f"Average distance: {initial_error}")
             
-    step_sizes = [0.01, 0.005]
+    step_sizes = [0.1, 0.05, 0.01, 0.005]
     errors = {1: [], 2: [], 3: [], 4: []}
     runtime = {1: [], 2: [], 3: [], 4: []}
+    for rk in [1, 2, 3, 4]:
+        for h in step_sizes:
+            print(f"Running experiment: rk={rk}, h={h}.")
+            start = time.perf_counter()
+            t = start_time
+            operator.set_time(t)
+            U = operator.interpolate(t)
+            
+            rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
+            rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+            def F(t, A):
+                operator.set_time(t)
+                return operator.apply(A)
+            
+            iter = 0 
+            while np.abs(t - final_time) > h / 2:
+                U, _ = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=None, preconditioner=None)
+                t += h
+                iter += 1
+                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                print(f"Average error at time t={t}: {err}.")
+                
+            end = time.perf_counter()
+            err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+            errors[rk].append(abs(err))
+            runtime[rk].append(end - start)
+    
+    plot_errors(step_sizes, errors, initial_error, name)
+    print(errors)
+    plot_runtimes(step_sizes, runtime, name_time)
+    print(runtime)
+
+def run_implicit():
+    explicit = False
+    name = "rk_implicit_convergence"
+    name_time = "rk_implicit_runtime"
+    name_iterations = "rk_implicit_iterations"
+    t = start_time
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
+    U = operator.interpolate(t)
+    initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
+    print(f"Average distance: {initial_error}")
+            
+    step_sizes = [0.1, 0.05, 0.01, 0.005]
+    errors = {1: [], 2: [], 3: [], 4: []}
+    runtime = {1: [], 2: [], 3: [], 4: []}
+    iterations = {1: [], 2: [], 3: [], 4: []}
     for rk in [1, 2, 3, 4]:
         for h in step_sizes:
             print(f"Running experiment: rk={rk}, h={h}.")
@@ -972,11 +980,10 @@ def run_explicit():
             elif rk > 1:
                 factor = rk_stepper.A[1, 1]
             gmres_operator = operator.build_operator(h * factor)
-            # preconditioner = operator.build_preconditioner(h * factor)
             
             iter = 0 
             avg_iterations_global = 0
-            while t < final_time:
+            while np.abs(t - final_time) > h / 2:
                 U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=None)
                 t += h
                 avg_iterations_global += avg_iterations
@@ -985,15 +992,87 @@ def run_explicit():
                 print(f"Average error at time t={t}: {err}.")
                 
             avg_iterations_global /= iter
-            # compute average error at final time
             end = time.perf_counter()
             err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
             errors[rk].append(abs(err))
-            # runtime[rk].append(end - start)
-            runtime[rk].append(avg_iterations_global)
+            runtime[rk].append(end - start)
+            iterations[rk].append(avg_iterations_global)
             print(avg_iterations_global)
     
-    # plot_explicit_errors(step_sizes, errors, initial_error, name)
-    plot_explicit_runtimes(step_sizes, runtime, name_time)
+    plot_errors(step_sizes, errors, initial_error, name)
+    print(errors)
+    plot_runtimes(step_sizes, runtime, name_time)
+    print(runtime)
+    plot_iterations(step_sizes, iterations, name_iterations)
+    print(iterations)
 
+def run_precon():
+    explicit = False
+    name = "rk_precon_convergence"
+    name_time = "rk_precon_runtime"
+    name_iterations = "rk_precon_iterations"
+    t = start_time
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
+    U = operator.interpolate(t)
+    initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
+    print(f"Average distance: {initial_error}")
+            
+    step_sizes = [0.1, 0.05, 0.01, 0.005]
+    errors = {1: [], 2: [], 3: [], 4: []}
+    runtime = {1: [], 2: [], 3: [], 4: []}
+    iterations = {1: [], 2: [], 3: [], 4: []}
+    for rk in [1, 2, 3, 4]:
+        for h in step_sizes:
+            print(f"Running experiment: rk={rk}, h={h}.")
+            start = time.perf_counter()
+            t = start_time
+            operator.set_time(t)
+            U = operator.interpolate(t)
+            
+            rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
+            rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+            def F(t, A):
+                operator.set_time(t)
+                return operator.apply(A)
+            
+            factor = 0
+            if rk_stepper.A[0, 0] != 0:
+                factor = rk_stepper.A[0, 0]
+            elif rk > 1:
+                factor = rk_stepper.A[1, 1]
+            gmres_operator = operator.build_operator(h * factor)
+            preconditioner = operator.build_preconditioner(h * factor)
+            
+            iter = 0 
+            avg_iterations_global = 0
+            while np.abs(t - final_time) > h / 2:
+                U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
+                t += h
+                avg_iterations_global += avg_iterations
+                iter += 1
+                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                print(f"Average error at time t={t}: {err}.")
+                
+            avg_iterations_global /= iter
+            end = time.perf_counter()
+            err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+            errors[rk].append(abs(err))
+            runtime[rk].append(end - start)
+            iterations[rk].append(avg_iterations_global)
+            print(avg_iterations_global)
+    
+    plot_errors(step_sizes, errors, initial_error, name)
+    print(errors)
+    plot_runtimes(step_sizes, runtime, name_time)
+    print(runtime)
+    plot_iterations(step_sizes, iterations, name_iterations)
+    print(iterations)
+
+make_snapshots()
 run_explicit()
+run_implicit()
+run_precon()

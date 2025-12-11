@@ -161,7 +161,8 @@ G_{ji^R} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{
 
 \textbf{Case 2A: Inflow Interior Face.} \\
 \begin{align*}
-G_{ji^L} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) \phi^L_{i_0}(-1) \phi^L_{i_1}(x_q) u^L_i\end{align*}
+G_{ji^L} \approx \quad &\sum_q w_q \frac{1}{2} (y_1 - y_0) \phi_{j_0}(-1) \phi_{j_1}(x_q) (a(x_0(-1), x_1(x_q), t) \cdot n) \phi^L_{i_0}(-1) \phi^L_{i_1}(x_q) u^L_i
+\end{align*}
 
 \textbf{Case 2B: Outflow Interior.} \\
 \begin{align*}
@@ -182,31 +183,31 @@ with the corresponding initial and boundary Dirichlet conditions. Figure \ref{fi
     \centering
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{snapshot-0.00.png}
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.00.png}
         \caption{$t = 0.00$}
     \end{subfigure}
     \hfill
         \begin{subfigure}{0.32\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{snapshot-0.25.png}
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.25.png}
         \caption{$t = 0.25$}
     \end{subfigure}
     \hfill
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{snapshot-0.50.png}
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.50.png}
         \caption{$t = 0.50$}
     \end{subfigure}
     \hfill
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{snapshot-0.75.png}
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.75.png}
         \caption{$t = 0.75$}
     \end{subfigure}
     \hfill
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{snapshot-1.00.png}
+        \includegraphics[width=\linewidth]{../plots/snapshot-1.00.png}
         \caption{$t = 1.00$}
     \end{subfigure}
 
@@ -280,14 +281,14 @@ Figure \ref{fig:explicitresults} shows the convergence behaviour for the differe
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_explicit_convergence.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_explicit_convergence.png}
     \caption{Convergence of explicit Runge--Kutta methods with 1 to 4 stages.}
     \label{fig:explicitresults}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_explicit_runtime.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_explicit_runtime.png}
     \caption{Runtime of explicit Runge--Kutta methods with 1 to 4 stages.}
     \label{fig:explicitruntime}
 \end{figure}
@@ -377,14 +378,14 @@ A DIRK scheme is an implicit Runge--Kutta method with $a_{ij} = 0$ for all $j>i$
     
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_convergence.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_convergence.png}
     \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages.}
     \label{fig:implicitresults}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_runtime.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_runtime.png}
     \caption{Runtime of implicit Runge--Kutta methods with 1 to 4 stages.}
     \label{fig:implicitruntime}
 \end{figure}
@@ -409,7 +410,7 @@ In our experiments in the same setting as earlier, this yields the following con
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_convergence_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_convergence_precon.png}
     \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznerresults}
 \end{figure}
@@ -418,7 +419,7 @@ In terms of runtime, we cannot recognise a significant speed-up as demonstrated 
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{rk_implicit_runtime_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_runtime_precon.png}
     \caption{Runtime of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznertime}
 \end{figure}
@@ -427,14 +428,14 @@ Even though we could show Pazner's preconditioner works as we have the same conv
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{average_iterations_implicit.png}
+    \includegraphics[width=0.85\textwidth]{../plots/average_iterations_implicit.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages without preconditioning.}
     \label{fig:implicititer}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{average_iterations_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/average_iterations_precon.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages with Pazner's preconditioner.}
     \label{fig:pazneriter}
 \end{figure}

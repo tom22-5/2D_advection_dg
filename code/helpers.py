@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import os
 
 def print_matrix(name, mat):
     print(f"\n{name}: shape={mat.shape}")
@@ -33,7 +34,10 @@ def show(evaluate, time=None):
     ax.set_zlabel("u(x,y)")
     if time is not None:
         ax.set_title(f"Solution at t = {time}")
-        fig.savefig(f"snapshot-{time:.2f}.png", dpi=300, bbox_inches="tight")
+        save_dir = "./plots"
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"snapshot-{time:.2f}.png")
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
     else:
         ax.set_title("Solution")
 
