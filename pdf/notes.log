@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  11 DEC 2025 11:58
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  11 DEC 2025 12:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -486,11 +486,7 @@ tex.def
 File: l3backend-pdftex.def 2022-10-26 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count312
 \l__pdf_internal_box=\box58
-) (notes.aux
-
-LaTeX Warning: Label `tab:iterations' multiply defined.
-
-)
+) (notes.aux)
 \openout1 = `notes.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 34.
@@ -748,10 +744,7 @@ Package pdftex.def Info: ../plots/rk_precon_iterations.png  used on input line
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 
-Package hyperref Warning: Suppressing empty link on input line 443.
-
-
-Overfull \hbox (3.54924pt too wide) in paragraph at lines 471--472
+Overfull \hbox (3.54924pt too wide) in paragraph at lines 470--471
 \OT1/cmr/m/n/12 This is a work in progress. Next, we plan on im-ple-ment-ing th
 e FDM pre-con-di-tioner [[]]
  []
@@ -770,9 +763,6 @@ Rene
 ) [12
 
 ] (notes.aux)
-
-LaTeX Warning: There were multiply-defined labels.
-
 Package rerunfilecheck Info: File `notes.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
@@ -802,9 +792,9 @@ c/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type
 onts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/
 MiKTeX/fonts/type1/public/amsfonts/cm/cmti12.pfb><C:/Users/ruhrg/AppData/Local/
 Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
-Output written on notes.pdf (14 pages, 3664933 bytes).
+Output written on notes.pdf (14 pages, 3665195 bytes).
 PDF statistics:
- 240 PDF objects out of 1000 (max. 8388607)
+ 241 PDF objects out of 1000 (max. 8388607)
  39 named destinations out of 1000 (max. 500000)
  66 words of extra memory for PDF output out of 10000 (max. 10000000)
 
