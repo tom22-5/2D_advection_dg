@@ -17,7 +17,7 @@ import os
 dim = 2
 flux_alpha = 1.0
 start_time = 0
-final_time = 1.0
+final_time = 0.1
 flux = "upwind"
 
 # Hyperparameters grid
@@ -848,8 +848,6 @@ def plot_errors(step_sizes, errors, initial_error, name="rk_convergence"):
     save_path = os.path.join(save_dir, f"{name}.png")
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close()
-    plt.savefig(f"{name}.png", dpi=300, bbox_inches="tight")
-    plt.close()
     print(f"Saved {name}.png")
     
 def plot_runtimes(step_sizes, errors, name="rk_runtime"):
@@ -928,8 +926,8 @@ def run_explicit():
                 U, _ = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=None, preconditioner=None)
                 t += h
                 iter += 1
-                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                print(f"Average error at time t={t}: {err}.")
+                # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                # print(f"Average error at time t={t}: {err}.")
                 
             end = time.perf_counter()
             err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
@@ -988,8 +986,8 @@ def run_implicit():
                 t += h
                 avg_iterations_global += avg_iterations
                 iter += 1
-                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                print(f"Average error at time t={t}: {err}.")
+                # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                # print(f"Average error at time t={t}: {err}.")
                 
             avg_iterations_global /= iter
             end = time.perf_counter()
@@ -1054,8 +1052,8 @@ def run_precon():
                 t += h
                 avg_iterations_global += avg_iterations
                 iter += 1
-                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                print(f"Average error at time t={t}: {err}.")
+                # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                # print(f"Average error at time t={t}: {err}.")
                 
             avg_iterations_global /= iter
             end = time.perf_counter()

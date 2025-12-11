@@ -410,7 +410,7 @@ In our experiments in the same setting as earlier, this yields the following con
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_convergence_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_precon_convergence.png}
     \caption{Convergence of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznerresults}
 \end{figure}
@@ -419,7 +419,7 @@ In terms of runtime, we cannot recognise a significant speed-up as demonstrated 
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_runtime_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_precon_runtime.png}
     \caption{Runtime of implicit Runge--Kutta methods with 1 to 4 stages combined with Pazner's preconditioner.}
     \label{fig:paznertime}
 \end{figure}
@@ -428,19 +428,43 @@ Even though we could show Pazner's preconditioner works as we have the same conv
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{../plots/average_iterations_implicit.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_implicit_iterations.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages without preconditioning.}
     \label{fig:implicititer}
 \end{figure}
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{../plots/average_iterations_precon.png}
+    \includegraphics[width=0.85\textwidth]{../plots/rk_precon_iterations.png}
     \caption{Average number of iterations for implicit Runge--Kutta methods with 1 to 4 stages with Pazner's preconditioner.}
     \label{fig:pazneriter}
 \end{figure}
 
-Notice that we display the average number of iterations per stage. For the 4-stage ESDIRK method with an explicit first stage, we thus divide by 4 even though we only have to solve an implicit system for 3 stages. This is why GMRES appears to perform much better here.
+We also visualize these results in table \ref{tab:iterations}. Notice that we display the average number of iterations per stage. For the 4-stage ESDIRK method with an explicit first stage, we thus divide by 4 even though we only have to solve an implicit system for 3 stages. This is why GMRES appears to perform much better here.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{With Preconditioner}} 
+ & \multicolumn{4}{c}{\textbf{Without Preconditioner}} \\
+\textbf{RK Order} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 19.00 & 19.00 & 11.00 & 9.00 
+  & 50.00 & 50.00 & 50.00 & 30.70 \\
+2 & 19.00 & 18.25 & 10.00 & 9.00 
+  & 50.00 & 50.00 & 45.15 & 25.13 \\
+3 & 19.00 & 19.00 & 11.00 & 9.03 
+  & 50.00 & 50.00 & 50.00 & 32.25 \\
+4 & 13.50 & 11.00 & 6.75 & 6.03 
+  & 37.50 & 37.50 & 20.68 & 12.23 \\
+\hline
+\end{tabular}
+\caption{Average GMRES iterations for RK methods with and without Pazner's preconditioner.}
+\label{tab:iterations}
+\end{table}
 
 \subsection*{Outlook}
 This is a work in progress. Next, we plan on implementing the FDM preconditioner~\cite{diosady2017tensor} for the matrix case in order to conduct a thorough comparison of tensor-product preconditioners. We will then try out a randomized preconditioner based on the RSVD. Depending on the results, an implementation in C++ deal.II will follow as well as an extension to three-dimensional problems.

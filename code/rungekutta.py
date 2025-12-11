@@ -1,6 +1,5 @@
 import numpy as np
-from scipy.sparse.linalg import gmres, LinearOperator
-from lanczos import form_2d_preconditioner, apply_2d_preconditioner
+from scipy.sparse.linalg import gmres
 
 # define rk schemes
 def rk_scheme(rk, explicit = True):
