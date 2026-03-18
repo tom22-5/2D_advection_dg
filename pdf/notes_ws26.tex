@@ -1,0 +1,134 @@
+\documentclass[12pt]{report}
+%%% Packages
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{subcaption}
+%%%
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+%%%
+\setlength{\parindent}{0pt}
+
+
+\begin{document}
+
+\title{Randomised Methods For Tensor-Product Preconditioners In Very High Order Discontinuous Galerkin Discretizations}
+\author{Tom Feldhausen}
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free tensor-product preconditioners such as the tensor-product preconditioners of \cite{diosady2017tensor} and \cite{pazner2018approximate}. In the first part of the project, we implemented a matrix-based DG method for two-dimensional linear advection with upwind flux and verified the efficiency of Pazner's preconditioner. Next, we aim to reduce the number of iterations by enhancing the preconditioner with randomised methods.
+\end{abstract}
+
+\section{Introduction To Matrix-Free Tensor-Product Preconditioning}
+In the first part of a project, we derived and implemented a 2D Discontinuous Galerkin scheme for the linear advection equation. For the time discretization, we compared explicit and SDIRK implicit schemes. The latter give rise to element-wise linear systems of the form $A_e x = b$ with
+\begin{align}
+A_e = M_e - h a_{j,j} (G - B).
+\end{align}
+
+We applied the tensor product preconditioners of \citep{diosady2017tensor} and \cite{pazner2018approximate}, which exhibit a large reduction in the number of iterations of the iterative linear solvers, i.e. block-Krylov methods. \\
+
+Traditionally, ILU or Gauss--Seidel preconditioners were used, but they require more than $\mathcal{O}(p^{d+1})$, which is the efficiency of matrix-free vector evaluations of the linear operator. \\
+
+Diosady~\citep{diosady2017tensor} suggest two approaches that exploits the tensor-product structure of the operator, the first one being the ADI scheme. \cite{diosady2017tensor} reduces the linear system to a matrix of the form 
+\begin{align*}
+.
+\end{align*}
+
+Running one iteration of alternating least squares, we arrive at the approximate inverse
+\begin{align*}
+.
+\end{align*}
+
+While this approach is very fast, it is only a rough approximation that does not suffice to precondition complex behaviour well. \\
+
+Alternatively, Diosady~\cite{diosady2017tensor} suggests the FDM preconditioner. If we can write $D_i = X_i \Lambda_i X_i^{-1}$, the inversion is easily determined as 
+\begin{align*}
+.
+\end{align*}
+
+Once again we benefit from high efficiency at the expense of ill-conditioning of $X_i$ and strong structural assumptions. While the approach works naturally for Laplacians that can be written as $\Delta_{x,y} = D_x \otimes I + I \otimes D_y$, Navier--Stokes equations rely on cross-derivatives such as $D_x \otimes D_y \otimes I$. \\
+
+Here enters Pazner's~\cite{pazner2018approximate} preconditioner. Using a Lanczos SVD on a reshuffled operator, we can compute 
+\begin{align}
+A_e \approx \sum_{k=1}^r A_k \otimes B_k \otimes C_k
+\end{align}
+in $\mathcal{O}(p^{d+1})$ time. For $r = 1$, the inversion is straightforward and for $r = 2$, it is efficiently found solving a Sylvester system. However, $r \leq 2$ might be inaccurate. While KSVD rank might be low, it still induces a full-rank matrix. This is crucial because the dynamics of fluid flow are full-rank, whereas the turbulences are low-rank phenomenon.
+
+\section{Randomized Matrix-Free Tensor-Product Preconditioning}
+We present the following preliminary ideas to enhance preconditioning via randomized means. We quickly summarize:
+\begin{enumerate}
+\item \textbf{Blendenpik}: Our source of inspiration, unsuited for our problem.
+
+\item \textbf{Randomized GMRES}: Randomized iterative solvers, but not preconditioners.
+
+\item \textbf{RSVD for KSVD}: State-of-the-art implementation for Pazner,
+
+\item \textbf{Tensor Formats for higher ranks}: The KSVD is cheaply transformed to other tensor formats, which allow cheap application of the inverse.
+
+\item \textbf{Woodbury}: Combine cheap full-rank base preconditioner (ADI, FDM, Pazner) for the fluid flow with low-rank preconditioner for turbulences.
+\end{enumerate}
+
+\subsubsection{Blendenpik}
+While unhelpful for our means, we draw inspiration from the Blendenpik algorithm. Choosing $R$ from $\Psi^\top A_e = QR$ as a preconditioner, it was one of the first randomized algorithms outperforming deterministic counterparts for least squares approximation. Problematically however, this ansatz does not address the full-rank nature of fluid dynamics nor the tensor-product structure of the problem.
+
+\subsubsection{Randomized GMRES}
+Suggested by Nakatsukasa and Tropp~\cite{}, the randomized variant promises significant runtime advantages at near-optimal accuracy by changing the iterative solver.
+
+\subsubsection{Efficient KSVD}
+The Lanczos SVD is no longer state of the art for small-rank truncated SVDs, but the randomized SVD~\cite{} is, such that we should include this algorithm. For rank $r$, it requires $2r$ matrix-vector products, Lanczos requires $2J$, where $J \geq r$ is the number of iterations.
+
+\subsubsection{Tensor Formats For The Inversion Of Higher Ranks}
+The KSVD can be cheaply transformed to a Tucker tensor formulation, whose inverse can be cheaply applied to a vector in a total $\mathcal{O}(p^{d+1})$ time. Formats such as the tensor train format should be examined as well. \\
+
+Start with $E = \sum_{k=1}^r A_k \otimes B_k \otimes C_k$. We sketch cheaply with $\Omega = \Omega_x \otimes \Omega_y \otimes \Omega_z$ such that in $\mathcal{O}(r k p^2)$ time we have
+\begin{align}
+E \Omega = \sum_{k=1}^r (A_k \Omega_x) \otimes (B_k \Omega_y) \otimes (C_k \Omega_z).
+\end{align}
+
+Our bases are determined ... \\
+
+We can finally compute the core in $\mathcal{O}(r k p^2)$ as 
+\begin{align*}
+C = (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) E (Q_x \otimes Q_y \otimes Q_z) = \sum_{k=1}^r (Q_x^\top A_k Q_x) \otimes (Q_y^\top B_k Q_y) \otimes (Q_z^\top C_k Q_z).
+\end{align*}
+
+Once we have our Tucker format $E^{-1} \approx (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) C^{-1} (Q_x \otimes Q_y \otimes Q_z)$ is applied in $\mathcal{O}(\cdot)$.
+
+\subsubsection{Woodbury}
+Naturally, $A_e = M + E$ can be decomposed. Writing $P \approx M + U V^\top$, Woodbury's formula~\cite{} gives 
+\begin{align*}
+z = P^{-1} v \approx M^{-1} v - M^{-1} U (I_k + V^\top M^{-1} U) V^\top M^{-1} v.
+\end{align*}
+
+Computing $E \approx UV^\top$ costs $\mathcal{O}(2k d p^{d+1})$ using the randomized SVD and the evaluation costs $\mathcal{O}(p^d)$. \\
+
+%%% Bibliography
+\bibliographystyle{alpha}
+\bibliography{references}
+%%%
+
+\end{document}
