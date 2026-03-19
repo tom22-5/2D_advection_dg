@@ -101,7 +101,7 @@ A_e \approx \sum_{k=1}^r A_k \otimes B_k \otimes C_k
 \end{align}
 in $\mathcal{O}(p^{d+1})$ time. For $r = 1$, the inversion is straightforward and for $r = 2$, it is efficiently found solving a Sylvester system. However, $r \leq 2$ might be inaccurate. While KSVD rank might be low, it still induces a full-rank matrix. This is crucial because the dynamics of fluid flow are full-rank, whereas the turbulences are low-rank phenomenon.
 
-\section{Randomized Matrix-Free Tensor-Product Preconditioning}
+\section{Strategies For Randomized Matrix-Free Tensor-Product Preconditioning}
 We present the following preliminary ideas to enhance preconditioning via randomized means. We quickly summarize:
 \begin{enumerate}
 \item \textbf{Blendenpik}: Our source of inspiration, unsuited for our problem.
@@ -158,6 +158,13 @@ z = P^{-1} v \approx P_1^{-1} v - P_1^{-1} U (I_k + V^\top P_1^{-1} U)^{-1} V^\t
 Computing the factorization $E \approx UV^\top$ costs $\mathcal{O}(4k d p^{d+1})$ using the randomized SVD. \\
 
 For the evaluation, see that applying the base preconditioner $w = P_1^{-1} v$ takes $\mathcal{O}(d p^{d+1})$ time and calculating the dense product $x = V^\top w$ takes $\mathcal{O}(k p^d)$ time. The core solve $(I_k + V^\top P_1^{-1} U)^{-1} x$ takes $\mathcal{O}(k^2)$ time, where the precomputation of the core costs $\mathcal{O}(k d p^{d+1})$. Applying $P_1^{-1}U$ (forming it is part of the prior precomputation) costs $\mathcal{O}(k^2 p^d)$ time. We conclude that the extra costs of the Woodbury update is $\mathcal{O}((4k + 2k + 1)d p^{d+1})$ for precomputation, whereas the update is free in the sense that it is lower-order. We expect massive computational advantages.
+
+\section{Randomized Woodbury Preconditioning}
+We implement the Woodbury approach and apply it to the exact same problem as in the first part of the project. It gets the same iteration numbers as Pazner's preconditioner. This means two things: it works and the problem is too simple such that Pazner models the underlying geometry remarkably well. It is not exact because we move in a block-Jacobi setting, but it is exact per block. \\
+
+This is why we increase the complexity of the problem. Instead of using a constant velocity, we use a rotating vortex velocity field $v(x, y) = (-y, x)$. \\
+
+Alternatively, we can use a worse preconditioner. Either Pazner with $r = 1$ or simply the matrix diagonal. The latter might be too bad to capture the full-rank fluid dynamics and thus requires massive rank in our Woodbury improvement, which is likely too costly. The first option is thus preferred.
 
 %%% Bibliography
 \bibliographystyle{alpha}

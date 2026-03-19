@@ -85,3 +85,17 @@ def lagrange_basis_derivative(x_nodes, i, x):
             total += term
             
     return total
+
+def rsvd(f, ft, n, k, factors=2):
+    Omega = np.random.randn(n,k)
+    Omega = f(Omega)
+    Q, R = np.linalg.qr(Omega)
+    R = ft(Q).T
+    if factors == 2:
+        return Q, R
+    else:
+        U, S, V = np.linalg.svd(R)
+        if factors == 3:
+            return Q * U, S, V
+        else:
+            return Q * U * S * V.T

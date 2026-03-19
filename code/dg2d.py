@@ -7,9 +7,9 @@ from lanczos import lanczos_svd, kronecker_svd
 from rungekutta import rk_scheme, RungeKuttaMethod
 from mesh import StructuredMesh2D
 from dofhandler import DoFHandler2D
-from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative
+from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative, rsvd
 from scipy.sparse.linalg import LinearOperator
-from lanczos import form_2d_preconditioner, apply_2d_preconditioner, lanczos_svd, kronecker_svd
+from lanczos import form_2d_preconditioner, apply_2d_preconditioner, apply_2d_preconditioner_transposed, lanczos_svd, kronecker_svd, apply_P1_forward, apply_P1_transposed_forward
 import time
 import os
 
@@ -427,6 +427,85 @@ class AdvectionOperator:
 
     return LinearOperator(shape=(self.ndofs, self.ndofs),matvec=matvec, dtype=float)
 
+  def build_improved_preconditioner(self, factor, k):
+    # 1. SETUP PHASE (Runs ONCE before GMRES)
+    cell_data = []  # Store the precomputed matrices for each cell
+    
+    for (ii, jj), dofs in self.dofhandler.iter_cells():
+        ndofs_loc = self.ndofs
+        dofs = np.array(dofs)
+        Mloc = self.M_inv[np.ix_(dofs, dofs)]
+        Bloc = self.B    [np.ix_(dofs, dofs)]
+        Gloc = self.G    [np.ix_(dofs, dofs)]
+        
+        # Local operators
+        def loc_matvec(v_loc):
+            return v_loc - factor * (Mloc @ ((Bloc - Gloc) @ v_loc))
+            
+        def loc_tmatvec(v_loc):
+            return v_loc - factor * ((Bloc.T - Gloc.T) @ (Mloc.T @ v_loc))
+                    
+        local_operator = LinearOperator(
+            shape=(Nq**2, Nq**2),
+            matvec=loc_matvec,
+            dtype=float
+        )
+        
+        # Base preconditioner P1
+        precon_dict = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, 2)
+        
+        # Error operator (E = A - P1)
+        def loc_rest_matvec(v_loc):
+            return loc_matvec(v_loc) - apply_P1_forward(v_loc, precon_dict)
+        
+        def loc_rest_tmatvec(v_loc):
+            return loc_tmatvec(v_loc) - apply_P1_transposed_forward(v_loc, precon_dict)
+        
+        # Randomized SVD (Note: pass ndofs_loc, not self.ndofs!)
+        U, V = rsvd(loc_rest_matvec, loc_rest_tmatvec, Nq**2, k, factors=2)
+        
+        # Precompute PU = P1^{-1} U (Process column-by-column)
+        PU = np.zeros_like(U)
+        for col in range(k):
+            PU[:, col] = apply_2d_preconditioner(U[:, col], precon_dict)
+            
+        # Precompute Woodbury Core = (I_k + V^T P1^{-1} U)^{-1}
+        core_inv = np.linalg.pinv(np.eye(k) + V @ PU, rcond=1e-12)
+        
+        # Save everything needed for GMRES into memory
+        cell_data.append({
+            'dofs': dofs,
+            'precon_dict': precon_dict,
+            'PU': PU,
+            'V': V,
+            'core_inv': core_inv
+        })
+
+    # 2. APPLICATION PHASE (Runs EVERY GMRES iteration)
+    def matvec(v):
+        v = v.reshape(self.ndofs)
+        w = np.zeros(self.ndofs)
+        
+        for cell in cell_data:
+            dofs = cell['dofs']
+            v_local = v[dofs]
+            
+            # Base solve: w_1 = P1^{-1} v
+            w_base = apply_2d_preconditioner(v_local, cell['precon_dict'])
+            
+            # Woodbury update: PU @ core_inv @ V^T @ w_base
+            update = cell['PU'] @ (cell['core_inv'] @ (cell['V'] @ w_base))
+            w[dofs] = w_base - update
+            
+        return w
+
+    # Return the global preconditioned operator
+    return LinearOperator(
+        shape=(self.ndofs, self.ndofs),
+        matvec=matvec,
+        dtype=float
+    )
+      
 ### tests
 # test 1: constant solution
 def test_constant_solution():
@@ -1070,7 +1149,76 @@ def run_precon():
     plot_iterations(step_sizes, iterations, name_iterations)
     print(iterations)
 
-make_snapshots()
-run_explicit()
-run_implicit()
-run_precon()
+def run_improved_precon():
+    explicit = False
+    t = start_time
+    mesh = StructuredMesh2D(Nx, Ny)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
+    U = operator.interpolate(t)
+    initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
+    print(f"Average distance: {initial_error}")
+            
+    step_sizes = [0.1, 0.05, 0.01, 0.005]
+    ranks = [0, 1, 2, 4, 8, 16]
+    errors = {1: [], 2: [], 3: [], 4: []}
+    runtime = {1: [], 2: [], 3: [], 4: []}
+    iterations = {1: [], 2: [], 3: [], 4: []}
+    for rk in [1, 2, 3, 4]:
+        for h in step_sizes:
+            for k in ranks:
+                name = f"rk_improved_precon_convergence_k={k}"
+                name_time = f"rk_improved_precon_runtime_k={k}"
+                name_iterations = f"rk_improved_precon_iterations_k={k}"
+                print(f"Running experiment: rk={rk}, h={h}, k={k}.")
+                start = time.perf_counter()
+                t = start_time
+                operator.set_time(t)
+                U = operator.interpolate(t)
+                
+                rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
+                rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+                def F(t, A):
+                    operator.set_time(t)
+                    return operator.apply(A)
+                
+                factor = 0
+                if rk_stepper.A[0, 0] != 0:
+                    factor = rk_stepper.A[0, 0]
+                elif rk > 1:
+                    factor = rk_stepper.A[1, 1]
+                gmres_operator = operator.build_operator(h * factor)
+                preconditioner = operator.build_improved_preconditioner(h * factor, k)
+                
+                iter = 0 
+                avg_iterations_global = 0
+                while np.abs(t - final_time) > h / 2:
+                    U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
+                    t += h
+                    avg_iterations_global += avg_iterations
+                    iter += 1
+                    # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                    # print(f"Average error at time t={t}: {err}.")
+                    
+                avg_iterations_global /= iter
+                end = time.perf_counter()
+                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                errors[rk].append(abs(err))
+                runtime[rk].append(end - start)
+                iterations[rk].append(avg_iterations_global)
+                print(avg_iterations_global)
+    
+    plot_errors(step_sizes, errors, initial_error, name)
+    print(errors)
+    plot_runtimes(step_sizes, runtime, name_time)
+    print(runtime)
+    plot_iterations(step_sizes, iterations, name_iterations)
+    print(iterations)
+
+# make_snapshots()
+# run_explicit()
+# run_implicit()
+# run_precon()
+run_improved_precon()
