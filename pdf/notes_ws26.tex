@@ -44,7 +44,30 @@ Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a
 \end{abstract}
 
 \section{Introduction To Matrix-Free Tensor-Product Preconditioning}
-In the first part of a project, we derived and implemented a 2D Discontinuous Galerkin scheme for the linear advection equation. For the time discretization, we compared explicit and SDIRK implicit schemes. The latter give rise to element-wise linear systems of the form $A_e x = b$ with
+In the first part of a project, we derived and implemented a 2D Discontinuous Galerkin scheme for the linear advection equation, giving rise to an element-wise system of the form
+\begin{align}
+\frac{dU(t)}{dt} = M^{-1} [(B - G) U - G_{\textnormal{bound}}].
+\end{align}
+
+When discretized with hexahedral elements, the involved matrices have tensor-product form. Specifically, let $x_i$ denote quadrature points, $w_i$ quadrature weights, $\phi_j$ 1D basis functions and $T$ the reference mapping. We introduce the 1D operators
+\begin{align}
+&G_{i,j} = \phi_j(x_i), \quad D_{i,j} = D \phi_j(x_i)
+\\
+&W_{i, i} = w_i, \quad E_{L,j} = \phi_j(-1), \quad E_{R, j} = \phi_j(1) 
+\\
+&J_T = \det(T(\cdot)), \quad \Lambda_{i,i} = \hat{au}(x_i).
+\end{align}
+
+With this notation at hand, we can express the DG matrices in cases with constant velocity 1 as
+\begin{align}
+&M = ((G^\top W) \otimes (G^\top W)  \otimes (G^\top W)) J_T (G \otimes ... \otimes G)
+\\
+&B = ((G^\top W) \otimes (G^\top W)  \otimes (G^\top W)) [(D \otimes G \otimes G) + (G \otimes D \otimes G) + (G \otimes G \otimes D)]
+\\
+&G_{\textnormal{2D face}} = (E_R \otimes G \otimes G)^\top (I \otimes W \otimes W) \Lambda (E_R \otimes G \otimes G).
+\end{align}
+
+For the time discretization, we compared explicit and SDIRK implicit schemes. The latter give rise to element-wise linear systems of the form $A_e x = b$ with
 \begin{align}
 A_e = M_e - h a_{j,j} (G - B).
 \end{align}
@@ -101,30 +124,40 @@ Suggested by Nakatsukasa and Tropp~\cite{}, the randomized variant promises sign
 \subsubsection{Efficient KSVD}
 The Lanczos SVD is no longer state of the art for small-rank truncated SVDs, but the randomized SVD~\cite{} is, such that we should include this algorithm. For rank $r$, it requires $2r$ matrix-vector products, Lanczos requires $2J$, where $J \geq r$ is the number of iterations.
 
-\subsubsection{Tensor Formats For The Inversion Of Higher Ranks}
-The KSVD can be cheaply transformed to a Tucker tensor formulation, whose inverse can be cheaply applied to a vector in a total $\mathcal{O}(p^{d+1})$ time. Formats such as the tensor train format should be examined as well. \\
+\subsubsection{The Inversion Of Higher Ranks}
+The KSVD can be cheaply transformed to a formulation similar to the Tucker format. We derive it in the following but realize it suffers from the curse of dimensionality. \\
 
-Start with $E = \sum_{k=1}^r A_k \otimes B_k \otimes C_k$. We sketch cheaply with $\Omega = \Omega_x \otimes \Omega_y \otimes \Omega_z$ such that in $\mathcal{O}(r k p^2)$ time we have
+Start with $E = \sum_{k=1}^r A_k \otimes B_k \otimes C_k$. $E$ is $N \times N$ with $N = p^d$ and $A_k, B_k, C_k$ are $p \times p$. We sketch cheaply with $\Omega = \Omega_x \otimes \Omega_y \otimes \Omega_z$ with $\Omega$ $N \times k^3$ and $\Omega_x, \Omega_y, \Omega_z$ $p \times k$ such that in $\mathcal{O}(dr k p^2)$ time we arrive at the factorization
 \begin{align}
 E \Omega = \sum_{k=1}^r (A_k \Omega_x) \otimes (B_k \Omega_y) \otimes (C_k \Omega_z).
 \end{align}
 
-Our bases are determined ... \\
+Our bases are determined by computing
+\begin{align*}
+&Q_x = \begin{pmatrix}A_1 \Omega_x & ... & A_r \Omega_x \end{pmatrix}
+\\
+&Q_y = \begin{pmatrix}B_1 \Omega_y & ... & B_r \Omega_y \end{pmatrix}
+\\
+&Q_z = \begin{pmatrix}C_1 \Omega_z & ... & C_r \Omega_z \end{pmatrix}
+\end{align*}
+in $\mathcal{O}(p (kr)^2)$ time for each basis with all bases of shape $p \times (rk)$. \\
 
-We can finally compute the core in $\mathcal{O}(r k p^2)$ as 
+We can finally compute the factorization of the $k^d \times k^d$ core in $\mathcal{O}(2rd p (rk)^2)$ as 
 \begin{align*}
 C = (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) E (Q_x \otimes Q_y \otimes Q_z) = \sum_{k=1}^r (Q_x^\top A_k Q_x) \otimes (Q_y^\top B_k Q_y) \otimes (Q_z^\top C_k Q_z).
 \end{align*}
 
-Once we have our Tucker format $E^{-1} \approx (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) C^{-1} (Q_x \otimes Q_y \otimes Q_z)$ is applied in $\mathcal{O}(\cdot)$.
+Once we have our Tucker format $E^{-1} \approx (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) C^{-1} (Q_x \otimes Q_y \otimes Q_z)$ is applied in $\mathcal{O}(p^{d+1} + k^{3d})$ time, which is too expensive. For higher ranks, inversion seems to remain a problem.
 
 \subsubsection{Woodbury}
-Naturally, $A_e = M + E$ can be decomposed. Writing $P \approx M + U V^\top$, Woodbury's formula~\cite{} gives 
+Naturally, $A_e = P_1 + E$ can be decomposed by choosing the base preconditioner $P_1$ as Pazner / FDM / ADI. We can apply $E$ in $\mathcal{O}(p^{d+1})$ time. Writing $P \approx P_1 + U V^\top$ with $U, V$ $N \times r$, Woodbury's formula~\cite{} gives 
 \begin{align*}
-z = P^{-1} v \approx M^{-1} v - M^{-1} U (I_k + V^\top M^{-1} U) V^\top M^{-1} v.
+z = P^{-1} v \approx P_1^{-1} v - P_1^{-1} U (I_k + V^\top P_1^{-1} U)^{-1} V^\top P_1^{-1} v.
 \end{align*}
 
-Computing $E \approx UV^\top$ costs $\mathcal{O}(2k d p^{d+1})$ using the randomized SVD and the evaluation costs $\mathcal{O}(p^d)$. \\
+Computing the factorization $E \approx UV^\top$ costs $\mathcal{O}(4k d p^{d+1})$ using the randomized SVD. \\
+
+For the evaluation, see that applying the base preconditioner $w = P_1^{-1} v$ takes $\mathcal{O}(d p^{d+1})$ time and calculating the dense product $x = V^\top w$ takes $\mathcal{O}(k p^d)$ time. The core solve $(I_k + V^\top P_1^{-1} U)^{-1} x$ takes $\mathcal{O}(k^2)$ time, where the precomputation of the core costs $\mathcal{O}(k d p^{d+1})$. Applying $P_1^{-1}U$ (forming it is part of the prior precomputation) costs $\mathcal{O}(k^2 p^d)$ time. We conclude that the extra costs of the Woodbury update is $\mathcal{O}((4k + 2k + 1)d p^{d+1})$ for precomputation, whereas the update is free in the sense that it is lower-order. We expect massive computational advantages.
 
 %%% Bibliography
 \bibliographystyle{alpha}

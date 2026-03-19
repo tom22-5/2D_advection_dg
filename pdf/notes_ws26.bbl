@@ -1,0 +1,22 @@
+\begin{thebibliography}{DM17}
+
+\bibitem[DM17]{diosady2017tensor}
+Laslo~T Diosady and Scott~M Murman.
+\newblock Tensor-product preconditioners for higher-order space--time
+  discontinuous galerkin methods.
+\newblock {\em Journal of Computational Physics}, 330:296--318, 2017.
+
+\bibitem[KK19]{kronbichler2019fast}
+Martin Kronbichler and Katharina Kormann.
+\newblock Fast matrix-free evaluation of discontinuous galerkin finite element
+  operators.
+\newblock {\em ACM Transactions on Mathematical Software (TOMS)}, 45(3):1--40,
+  2019.
+
+\bibitem[PP18]{pazner2018approximate}
+Will Pazner and Per-Olof Persson.
+\newblock Approximate tensor-product preconditioners for very high order
+  discontinuous galerkin methods.
+\newblock {\em Journal of computational physics}, 354:344--369, 2018.
+
+\end{thebibliography}

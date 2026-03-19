@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  19 MAR 2026 00:27
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  19 MAR 2026 14:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -590,19 +590,6 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 [1
 
 {C:/Users/ruhrg/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
-
-Package natbib Warning: Citation `kronbichler2019fast' on page 1 undefined on i
-nput line 43.
-
-
-Package natbib Warning: Citation `diosady2017tensor' on page 1 undefined on inp
-ut line 43.
-
-
-Package natbib Warning: Citation `pazner2018approximate' on page 1 undefined on
- input line 43.
-
-
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
 been already used, duplicate ignored
 <to be read again> 
@@ -614,52 +601,23 @@ Overfull \hbox (8.22984pt too wide) in paragraph at lines 46--46
  []
 
 
-Package natbib Warning: Citation `diosady2017tensor' on page 1 undefined on inp
-ut line 52.
-
-
-Package natbib Warning: Citation `pazner2018approximate' on page 1 undefined on
- input line 52.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 52--53
+Underfull \hbox (badness 10000) in paragraph at lines 75--76
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 54--55
+Underfull \hbox (badness 10000) in paragraph at lines 77--78
 
  []
 
 
-Package natbib Warning: Citation `diosady2017tensor' on page 1 undefined on inp
-ut line 56.
-
-
-Package natbib Warning: Citation `diosady2017tensor' on page 1 undefined on inp
-ut line 56.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 66--67
+Underfull \hbox (badness 10000) in paragraph at lines 89--90
 
  []
 
 
-Package natbib Warning: Citation `diosady2017tensor' on page 1 undefined on inp
-ut line 68.
+Underfull \hbox (badness 10000) in paragraph at lines 96--97
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 73--74
-
- []
-
-
-Package natbib Warning: Citation `pazner2018approximate' on page 1 undefined on
- input line 75.
-
-
-Overfull \hbox (9.6499pt too wide) in paragraph at lines 81--81
-|[]\OT1/cmr/bx/n/17.28 Randomized Matrix-Free Tensor-Product Pre-con-
  []
 
 
@@ -667,39 +625,41 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.84 \item \textbf
-                  {Blendenpik}: Our source of inspiration, unsuited for our ...
-[1]
-Underfull \hbox (badness 10000) in paragraph at lines 105--106
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 112--113
-
+l.97 
+      [1]
+Overfull \hbox (9.6499pt too wide) in paragraph at lines 104--104
+|[]\OT1/cmr/bx/n/17.28 Randomized Matrix-Free Tensor-Product Pre-con-
  []
 
 [2]
-Underfull \hbox (badness 10000) in paragraph at lines 127--128
+Underfull \hbox (badness 10000) in paragraph at lines 128--129
 
  []
 
-No file notes_ws26.bbl.
 
-Package natbib Warning: There were undefined citations.
+Underfull \hbox (badness 10000) in paragraph at lines 142--144
 
-[3] (notes_ws26.aux)
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 158--159
+
+ []
+
+(notes_ws26.bbl [3]) [4
+
+] (notes_ws26.aux)
 Package rerunfilecheck Info: File `notes_ws26.out' has not changed.
 (rerunfilecheck)             Checksum: C9A05DA1A895A655D0246E0FD41D163B;666.
  ) 
 Here is how much of TeX's memory you used:
- 13269 strings out of 476406
- 213783 string characters out of 2789568
- 1859787 words of memory out of 3000000
- 33439 multiletter control sequences out of 15000+600000
- 520743 words of font info for 65 fonts, out of 8000000 for 9000
+ 13296 strings out of 476406
+ 214339 string characters out of 2789568
+ 1864787 words of memory out of 3000000
+ 33451 multiletter control sequences out of 15000+600000
+ 521696 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,8n,77p,965b,496s stack positions out of 10000i,1000n,20000p,200000b,80000s
+ 72i,13n,77p,961b,451s stack positions out of 10000i,1000n,20000p,200000b,80000s
 <C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmbx12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmex10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/p
@@ -709,10 +669,12 @@ TeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/ruhrg/AppData/Local/Prog
 rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr17.pfb><C:/Users/ruhrg/AppData/Lo
 cal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/App
 Data/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/
-ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb>
-Output written on notes_ws26.pdf (5 pages, 131073 bytes).
+ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C
+:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmti
+12.pfb>
+Output written on notes_ws26.pdf (6 pages, 158794 bytes).
 PDF statistics:
- 90 PDF objects out of 1000 (max. 8388607)
- 14 named destinations out of 1000 (max. 500000)
+ 121 PDF objects out of 1000 (max. 8388607)
+ 26 named destinations out of 1000 (max. 500000)
  17 words of extra memory for PDF output out of 10000 (max. 10000000)
 
