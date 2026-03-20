@@ -191,41 +191,62 @@ def kronecker_svd(A, m1, m2, n1, n2, r, method="lanczos"):
     return A_list, B_list, S[:rmin]
 
 def form_2d_preconditioner(A, m1, m2, n1, n2, r):
-    A_list, B_list, _ = kronecker_svd(A, m1, m2, n1, n2, r=2)
-    A1, A2 = A_list
-    B1, B2 = B_list
+    if r == 2:
+        A_list, B_list, _ = kronecker_svd(A, m1, m2, n1, n2, r=2)
+        A1, A2 = A_list
+        B1, B2 = B_list
 
-    L_A2, U_A2 = lu(A2, permute_l=True)
-    L_B1, U_B1 = lu(B1, permute_l=True)
+        L_A2, U_A2 = lu(A2, permute_l=True)
+        L_B1, U_B1 = lu(B1, permute_l=True)
 
-    A2_inv_A1 = solve(A2, A1)
-    B1_inv_B2 = solve(B1, B2)
+        A2_inv_A1 = solve(A2, A1)
+        B1_inv_B2 = solve(B1, B2)
 
-    T1, Q1 = schur(A2_inv_A1)
-    T2, Q2 = schur(B1_inv_B2)
+        T1, Q1 = schur(A2_inv_A1)
+        T2, Q2 = schur(B1_inv_B2)
+        
+        L_A2T, U_A2T = lu(A2.T, permute_l=True)
+        L_B1T, U_B1T = lu(B1.T, permute_l=True)
+
+        A2T_inv_A1T = solve(A2.T, A1.T)
+        B1T_inv_B2T = solve(B1.T, B2.T)
+
+        T1T, Q1T = schur(A2T_inv_A1T)
+        T2T, Q2T = schur(B1T_inv_B2T)
+
+        return {
+            "A1": A1, "B1": B1, "A2": A2, "B2": B2,
+            "Schur_A": (Q1, T1),
+            "LU_A2": (L_A2, U_A2),
+            "LU_B1": (L_B1, U_B1),
+            "Schur_B": (Q2, T2),
+            "Schur_AT": (Q1T, T1T),
+            "LU_A2T": (L_A2T, U_A2T),
+            "LU_B1T": (L_B1T, U_B1T),
+            "Schur_BT": (Q2T, T2T)
+        }
+    elif r == 1:
+        A_list, B_list, _ = kronecker_svd(A, m1, m2, n1, n2, r=1)
+        A1 = A_list[0]
+        B1 = B_list[0]
+        
+        L_A1, U_A1 = lu(A1, permute_l=True)
+        L_B1, U_B1 = lu(B1, permute_l=True)
+        
+        L_A1T, U_A1T = lu(A1.T, permute_l=True)
+        L_B1T, U_B1T = lu(B1.T, permute_l=True)
+        
+        return {
+            "A1": A1, "B1": B1,
+            "LU_A1": (L_A1, U_A1),
+            "LU_B1": (L_B1, U_B1),
+            "LU_A1T": (L_A1T, U_A1T),
+            "LU_B1T": (L_B1T, U_B1T),
+        }
+    else:
+        raise NotImplementedError()
     
-    L_A2T, U_A2T = lu(A2.T, permute_l=True)
-    L_B1T, U_B1T = lu(B1.T, permute_l=True)
-
-    A2T_inv_A1T = solve(A2.T, A1.T)
-    B1T_inv_B2T = solve(B1.T, B2.T)
-
-    T1T, Q1T = schur(A2T_inv_A1T)
-    T2T, Q2T = schur(B1T_inv_B2T)
-
-    return {
-        "A1": A1, "B1": B1, "A2": A2, "B2": B2,
-        "Schur_A": (Q1, T1),
-        "LU_A2": (L_A2, U_A2),
-        "LU_B1": (L_B1, U_B1),
-        "Schur_B": (Q2, T2),
-        "Schur_AT": (Q1T, T1T),
-        "LU_A2T": (L_A2T, U_A2T),
-        "LU_B1T": (L_B1T, U_B1T),
-        "Schur_BT": (Q2T, T2T)
-    }
-    
-def apply_2d_preconditioner(b, preconditioner, m2=None, n2=None):
+def apply_2d_preconditioner(b, preconditioner, m2=None, n2=None, r=2):
     """
     Solve (A1 ⊗ B1 + A2 ⊗ B2) x = b using the 2D Kronecker preconditioner
     via Schur-based Sylvester solve.
@@ -242,155 +263,242 @@ def apply_2d_preconditioner(b, preconditioner, m2=None, n2=None):
     if b.ndim == 2 and b.shape[1] > 1:
         result = np.zeros_like(b)
         for i in range(b.shape[1]):
-            result[:, i] = apply_2d_preconditioner(b[:, i], preconditioner)
+            result[:, i] = apply_2d_preconditioner(b[:, i], preconditioner, r)
         return result
     
-    # Unpack
-    L_A2, U_A2 = preconditioner["LU_A2"]
-    L_B1, U_B1 = preconditioner["LU_B1"]
-    Q1, T1 = preconditioner["Schur_A"]
-    Q2, T2 = preconditioner["Schur_B"]
+    if r == 2:
+        # Unpack
+        L_A2, U_A2 = preconditioner["LU_A2"]
+        L_B1, U_B1 = preconditioner["LU_B1"]
+        Q1, T1 = preconditioner["Schur_A"]
+        Q2, T2 = preconditioner["Schur_B"]
 
-    # Dimensions
-    p = U_A2.shape[0]   # dim(A2)
-    q = U_B1.shape[0]   # dim(B1)
-    assert b.size == p * q
+        # Dimensions
+        p = U_A2.shape[0]   # dim(A2)
+        q = U_B1.shape[0]   # dim(B1)
+        assert b.size == p * q
 
-    # --- Step 1: RHS_mat = B1^{-1} * B_mat * A2^{-T} ---
-    # Interpret b as vec_F(B_mat) with shape (q x p)
-    B_mat = b.reshape(q, p, order="F")
+        # --- Step 1: RHS_mat = B1^{-1} * B_mat * A2^{-T} ---
+        # Interpret b as vec_F(B_mat) with shape (q x p)
+        B_mat = b.reshape(q, p, order="F")
 
-    # Solve B1 * X = B_mat  →  X = B1^{-1} B_mat
-    tmp = solve(L_B1, B_mat)        # forward
-    tmp = solve(U_B1, tmp)          # backward
+        # Solve B1 * X = B_mat  →  X = B1^{-1} B_mat
+        tmp = solve(L_B1, B_mat)        # forward
+        tmp = solve(U_B1, tmp)          # backward
 
-    # We want RHS_mat = tmp * A2^{-T}.
-    # This is equivalent to solving A2 * Y^T = tmp^T, then Y = RHS_mat.
-    tmp_T = tmp.T
-    Y_T = solve(L_A2, tmp_T)        # forward with A2
-    Y_T = solve(U_A2, Y_T)          # backward with A2
-    RHS_mat = Y_T.T                 # = tmp * A2^{-T}
+        # We want RHS_mat = tmp * A2^{-T}.
+        # This is equivalent to solving A2 * Y^T = tmp^T, then Y = RHS_mat.
+        tmp_T = tmp.T
+        Y_T = solve(L_A2, tmp_T)        # forward with A2
+        Y_T = solve(U_A2, Y_T)          # backward with A2
+        RHS_mat = Y_T.T                 # = tmp * A2^{-T}
 
-    # --- Step 2: Transform to Schur basis ---
-    # C2 X + X C1^T = RHS_mat
-    # with C1 = A2^{-1} A1 = Q1 T1 Q1^T, C2 = B1^{-1} B2 = Q2 T2 Q2^T
-    #
-    # Let X = Q2 Y Q1^T. Then
-    #   T2 Y + Y T1^T = Q2^T RHS_mat Q1
-    RHS_hat = Q2.T @ RHS_mat @ Q1
+        # --- Step 2: Transform to Schur basis ---
+        # C2 X + X C1^T = RHS_mat
+        # with C1 = A2^{-1} A1 = Q1 T1 Q1^T, C2 = B1^{-1} B2 = Q2 T2 Q2^T
+        #
+        # Let X = Q2 Y Q1^T. Then
+        #   T2 Y + Y T1^T = Q2^T RHS_mat Q1
+        RHS_hat = Q2.T @ RHS_mat @ Q1
 
-    # --- Step 3: Solve Sylvester T2 Y + Y T1^T = RHS_hat ---
-    Y = solve_sylvester(T2, T1.T, RHS_hat)
+        # --- Step 3: Solve Sylvester T2 Y + Y T1^T = RHS_hat ---
+        Y = solve_sylvester(T2, T1.T, RHS_hat)
 
-    # --- Step 4: Back-transform X = Q2 Y Q1^T ---
-    X = Q2 @ Y @ Q1.T
+        # --- Step 4: Back-transform X = Q2 Y Q1^T ---
+        X = Q2 @ Y @ Q1.T
 
-    # Return vec_F(X)
-    x = X.reshape(p * q, order="F")
-    return x
+        # Return vec_F(X)
+        x = X.reshape(p * q, order="F")
+        return x
+    elif r == 1:
+        # --- 2. Store original shape to prevent broadcasting bugs ---
+        original_shape = b.shape
+        b = b.flatten()
 
-def apply_2d_preconditioner_transposed(b, preconditioner, m2=None, n2=None):
+        # Unpack (Make sure your precompute dict uses "LU_A1", not "LU_A2"!)
+        L_A1, U_A1 = preconditioner["LU_A1"]
+        L_B1, U_B1 = preconditioner["LU_B1"]
+
+        # Dimensions
+        p = U_A1.shape[0]   # dim(A1)
+        q = U_B1.shape[0]   # dim(B1)
+
+        # Interpret b as vec_F(B_mat) with shape (q x p)
+        B_mat = b.reshape((q, p), order="F")
+
+        # --- Step 1: Solve B1 * Z = B_mat  ->  Z = B1^{-1} B_mat ---
+        tmp = solve(L_B1, B_mat)        # forward
+        Z = solve(U_B1, tmp)            # backward
+
+        # --- Step 2: Solve X * A1^T = Z  ->  A1 * X^T = Z^T  ->  X^T = A1^{-1} Z^T ---
+        tmp_T = solve(L_A1, Z.T)        # forward with A1
+        X_T = solve(U_A1, tmp_T)        # backward with A1
+        
+        # Transpose back to get X
+        X = X_T.T
+
+        # --- Step 3: Return vec_F(X) mapped back to exact original shape ---
+        x = X.flatten(order="F")
+        return x.reshape(original_shape)
+    else:
+        raise NotImplementedError()
+        
+
+def apply_2d_preconditioner_transposed(b, preconditioner, m2=None, n2=None, r=2):
     """
     Solve (A1 ⊗ B1 + A2 ⊗ B2)^T x = b using the transposed 2D Kronecker preconditioner.
     """
     if b.ndim == 2 and b.shape[1] > 1:
         result = np.zeros_like(b)
         for i in range(b.shape[1]):
-            result[:, i] = apply_2d_preconditioner_transposed(b[:, i], preconditioner)
+            result[:, i] = apply_2d_preconditioner_transposed(b[:, i], preconditioner, r)
         return result
     
-    # Unpack (exact same as forward)
-    L_A2, U_A2 = preconditioner["LU_A2T"]
-    L_B1, U_B1 = preconditioner["LU_B1T"]
-    Q1, T1 = preconditioner["Schur_AT"]
-    Q2, T2 = preconditioner["Schur_BT"]
+    if r == 2:
+        # Unpack (exact same as forward)
+        L_A2, U_A2 = preconditioner["LU_A2T"]
+        L_B1, U_B1 = preconditioner["LU_B1T"]
+        Q1, T1 = preconditioner["Schur_AT"]
+        Q2, T2 = preconditioner["Schur_BT"]
 
-    # Dimensions
-    p = U_A2.shape[0]   # dim(A2.T)
-    q = U_B1.shape[0]   # dim(B1.T)
-    assert b.size == p * q
+        # Dimensions
+        p = U_A2.shape[0]   # dim(A2.T)
+        q = U_B1.shape[0]   # dim(B1.T)
+        assert b.size == p * q
 
-    # --- Step 1: RHS_mat = B1^{-1} * B_mat * A2^{-T} ---
-    # Interpret b as vec_F(B_mat) with shape (q x p)
-    B_mat = b.reshape(q, p, order="F")
+        # --- Step 1: RHS_mat = B1^{-1} * B_mat * A2^{-T} ---
+        # Interpret b as vec_F(B_mat) with shape (q x p)
+        B_mat = b.reshape(q, p, order="F")
 
-    # Solve B1 * X = B_mat  →  X = B1^{-1} B_mat
-    tmp = solve(L_B1, B_mat)        # forward
-    tmp = solve(U_B1, tmp)          # backward
+        # Solve B1 * X = B_mat  →  X = B1^{-1} B_mat
+        tmp = solve(L_B1, B_mat)        # forward
+        tmp = solve(U_B1, tmp)          # backward
 
-    # We want RHS_mat = tmp * A2^{-T}.
-    # This is equivalent to solving A2 * Y^T = tmp^T, then Y = RHS_mat.
-    tmp_T = tmp.T
-    Y_T = solve(L_A2, tmp_T)        # forward with A2
-    Y_T = solve(U_A2, Y_T)          # backward with A2
-    RHS_mat = Y_T.T                 # = tmp * A2^{-T}
+        # We want RHS_mat = tmp * A2^{-T}.
+        # This is equivalent to solving A2 * Y^T = tmp^T, then Y = RHS_mat.
+        tmp_T = tmp.T
+        Y_T = solve(L_A2, tmp_T)        # forward with A2
+        Y_T = solve(U_A2, Y_T)          # backward with A2
+        RHS_mat = Y_T.T                 # = tmp * A2^{-T}
 
-    # --- Step 2: Transform to Schur basis ---
-    # C2 X + X C1^T = RHS_mat
-    # with C1 = A2^{-1} A1 = Q1 T1 Q1^T, C2 = B1^{-1} B2 = Q2 T2 Q2^T
-    #
-    # Let X = Q2 Y Q1^T. Then
-    #   T2 Y + Y T1^T = Q2^T RHS_mat Q1
-    RHS_hat = Q2.T @ RHS_mat @ Q1
+        # --- Step 2: Transform to Schur basis ---
+        # C2 X + X C1^T = RHS_mat
+        # with C1 = A2^{-1} A1 = Q1 T1 Q1^T, C2 = B1^{-1} B2 = Q2 T2 Q2^T
+        #
+        # Let X = Q2 Y Q1^T. Then
+        #   T2 Y + Y T1^T = Q2^T RHS_mat Q1
+        RHS_hat = Q2.T @ RHS_mat @ Q1
 
-    # --- Step 3: Solve Sylvester T2 Y + Y T1^T = RHS_hat ---
-    Y = solve_sylvester(T2, T1.T, RHS_hat)
+        # --- Step 3: Solve Sylvester T2 Y + Y T1^T = RHS_hat ---
+        Y = solve_sylvester(T2, T1.T, RHS_hat)
 
-    # --- Step 4: Back-transform X = Q2 Y Q1^T ---
-    X = Q2 @ Y @ Q1.T
+        # --- Step 4: Back-transform X = Q2 Y Q1^T ---
+        X = Q2 @ Y @ Q1.T
 
-    # Return vec_F(X)
-    x = X.reshape(p * q, order="F")
-    return x
+        # Return vec_F(X)
+        x = X.reshape(p * q, order="F")
+        return x
+    elif r == 1:
+        original_shape = b.shape
+        b = b.flatten()
 
-def apply_P1_forward(b, preconditioner):
+        L_A1, U_A1 = preconditioner["LU_A1T"]
+        L_B1, U_B1 = preconditioner["LU_B1T"]
+
+        p = U_A1.shape[0]   # dim(A1.T)
+        q = U_B1.shape[0]   # dim(B1.T)
+
+        B_mat = b.reshape((q, p), order="F")
+
+        # Z = B1^{-T} B_mat
+        tmp = solve(L_B1, B_mat)
+        Z = solve(U_B1, tmp)
+
+        # X^T = A1^{-T} Z^T
+        tmp_T = solve(L_A1, Z.T)
+        X_T = solve(U_A1, tmp_T)
+        X = X_T.T
+
+        x = X.flatten(order="F")
+        return x.reshape(original_shape)
+    else:
+        raise NotImplementedError()
+
+def apply_P1_forward(b, preconditioner, r=2):
     """Evaluates the forward matrix-vector product P1 * b"""
     if b.ndim == 2 and b.shape[1] > 1:
         result = np.zeros_like(b)
         for i in range(b.shape[1]):
-            result[:, i] = apply_P1_forward(b[:, i], preconditioner)
+            result[:, i] = apply_P1_forward(b[:, i], preconditioner, r)
         return result
         
     original_shape = b.shape
     b = b.flatten()
     
-    A1 = preconditioner["A1"]
-    B1 = preconditioner["B1"]
-    A2 = preconditioner["A2"]
-    B2 = preconditioner["B2"]
-    p, q = A1.shape[0], B1.shape[0]
-    
-    # Reshape vector to matrix for Kronecker trick
-    V_mat = b.reshape(q, p, order="F")
-    
-    # (A1 (x) B1) v = vec(B1 * V_mat * A1^T)
-    term1 = B1 @ V_mat @ A1.T
-    term2 = B2 @ V_mat @ A2.T
-    
-    return (term1 + term2).flatten(order="F").reshape(original_shape)
+    if r == 2:
+        A1 = preconditioner["A1"]
+        B1 = preconditioner["B1"]
+        A2 = preconditioner["A2"]
+        B2 = preconditioner["B2"]
+        p, q = A1.shape[0], B1.shape[0]
+        
+        # Reshape vector to matrix for Kronecker trick
+        V_mat = b.reshape(q, p, order="F")
+        
+        # (A1 (x) B1) v = vec(B1 * V_mat * A1^T)
+        term1 = B1 @ V_mat @ A1.T
+        term2 = B2 @ V_mat @ A2.T
+        
+        return (term1 + term2).flatten(order="F").reshape(original_shape)
+    elif r == 1:
+        A1 = preconditioner["A1"]
+        B1 = preconditioner["B1"]
+        p, q = A1.shape[0], B1.shape[0]
+        
+        # Reshape vector to matrix for Kronecker trick
+        V_mat = b.reshape(q, p, order="F")
+        
+        # (A1 (x) B1) v = vec(B1 * V_mat * A1^T)
+        term1 = B1 @ V_mat @ A1.T
+        
+        return term1.flatten(order="F").reshape(original_shape)
+    else:
+        raise NotImplementedError()
 
 
-def apply_P1_transposed_forward(b, preconditioner):
+def apply_P1_transposed_forward(b, preconditioner, r=2):
     """Evaluates the transposed matrix-vector product P1^T * b"""
     if b.ndim == 2 and b.shape[1] > 1:
         result = np.zeros_like(b)
         for i in range(b.shape[1]):
-            result[:, i] = apply_P1_transposed_forward(b[:, i], preconditioner)
+            result[:, i] = apply_P1_transposed_forward(b[:, i], preconditioner, r)
         return result
         
     original_shape = b.shape
     b = b.flatten()
     
-    A1 = preconditioner["A1"]
-    B1 = preconditioner["B1"]
-    A2 = preconditioner["A2"]
-    B2 = preconditioner["B2"]
-    p, q = A1.shape[0], B1.shape[0]
-    
-    V_mat = b.reshape(q, p, order="F")
-    
-    # (A1^T (x) B1^T) v = vec(B1^T * V_mat * A1)
-    term1 = B1.T @ V_mat @ A1
-    term2 = B2.T @ V_mat @ A2
-    
-    return (term1 + term2).flatten(order="F").reshape(original_shape)
+    if r == 2:
+        A1 = preconditioner["A1"]
+        B1 = preconditioner["B1"]
+        A2 = preconditioner["A2"]
+        B2 = preconditioner["B2"]
+        p, q = A1.shape[0], B1.shape[0]
+        
+        V_mat = b.reshape(q, p, order="F")
+        
+        # (A1^T (x) B1^T) v = vec(B1^T * V_mat * A1)
+        term1 = B1.T @ V_mat @ A1
+        term2 = B2.T @ V_mat @ A2
+        return (term1 + term2).flatten(order="F").reshape(original_shape)
+    elif r == 1:
+        A1 = preconditioner["A1"]
+        B1 = preconditioner["B1"]
+        p, q = A1.shape[0], B1.shape[0]
+        
+        V_mat = b.reshape(q, p, order="F")
+        
+        # (A1^T (x) B1^T) v = vec(B1^T * V_mat * A1)
+        term1 = B1.T @ V_mat @ A1
+        return term1.flatten(order="F").reshape(original_shape)
+    else:
+        raise NotImplementedError()

@@ -160,11 +160,24 @@ Computing the factorization $E \approx UV^\top$ costs $\mathcal{O}(4k d p^{d+1})
 For the evaluation, see that applying the base preconditioner $w = P_1^{-1} v$ takes $\mathcal{O}(d p^{d+1})$ time and calculating the dense product $x = V^\top w$ takes $\mathcal{O}(k p^d)$ time. The core solve $(I_k + V^\top P_1^{-1} U)^{-1} x$ takes $\mathcal{O}(k^2)$ time, where the precomputation of the core costs $\mathcal{O}(k d p^{d+1})$. Applying $P_1^{-1}U$ (forming it is part of the prior precomputation) costs $\mathcal{O}(k^2 p^d)$ time. We conclude that the extra costs of the Woodbury update is $\mathcal{O}((4k + 2k + 1)d p^{d+1})$ for precomputation, whereas the update is free in the sense that it is lower-order. We expect massive computational advantages.
 
 \section{Randomized Woodbury Preconditioning}
-We implement the Woodbury approach and apply it to the exact same problem as in the first part of the project. It gets the same iteration numbers as Pazner's preconditioner. This means two things: it works and the problem is too simple such that Pazner models the underlying geometry remarkably well. It is not exact because we move in a block-Jacobi setting, but it is exact per block. \\
+We implement the Woodbury approach and apply it to the exact same problem as in the first part of the project, linear advection with constant velocity. It gets the same iteration numbers as Pazner's preconditioner. This means two things: it works and the problem is too simple such that Pazner models the underlying geometry remarkably well. It is not exact because we move in a block-Jacobi setting, but it is exact per block. \\
 
-This is why we increase the complexity of the problem. Instead of using a constant velocity, we use a rotating vortex velocity field $v(x, y) = (-y, x)$. \\
+This is why we increase the complexity of the problem. Instead of using a constant velocity, we use a rotating vortex velocity field $v(x, y) = (-y, x)$. For $r = 2$ we have the same picture due to the fact that the continuous operator is a rank-$2$ Kronecker product, i.e.
+\begin{align}
+-y \partial_x u + x \partial_y u = D_x \otimes M_y(-y) + M_x(x) D_y.
+\end{align}
 
-Alternatively, we can use a worse preconditioner. Either Pazner with $r = 1$ or simply the matrix diagonal. The latter might be too bad to capture the full-rank fluid dynamics and thus requires massive rank in our Woodbury improvement, which is likely too costly. The first option is thus preferred.
+We expect this to no longer be a case in 3D. Alternatively, we can use a worse preconditioner. Either Pazner with $r = 1$ or simply the matrix diagonal. The latter might be too bad to capture the full-rank fluid dynamics and thus requires massive rank in our Woodbury improvement, which is likely too costly. The first option is thus preferred and the results are promising. The higher the rank of our Woodbury patch, the lower the number of iterations. Ranks $k = 8-16$ even deliver as few iterations as the $r = 2$ Pazner preconditioner. This is remarkable because it suggests that in 3D, combining $r = 2$ and moderately high $k$ can reduce the number of iterations to $r = 3$ Pazner preconditioning, which is infeasible in practice without losing $\mathcal{O}(p^{d+1})$. \\
+
+\textbf{Enter nice graphics and present to Martin.}
+
+Next, we can do the following:
+\begin{enumerate}
+\item Consider different base preconditioners: FDM, ADI, matrix diagonal.
+\item Extend to 3D.
+\item Optimize code in deal.II.
+\item Add diffusion terms, Navier--Stokes.
+\end{enumerate}
 
 %%% Bibliography
 \bibliographystyle{alpha}

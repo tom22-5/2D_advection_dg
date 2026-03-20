@@ -433,7 +433,19 @@ class AdvectionOperator:
     )
     return linear_operator
   
-  def build_preconditioner(self, factor):
+  def build_preconditioner(self, factor, type = "pazner", r=2):
+    if type == "pazner":
+        return self.build_pazner(factor, r)
+    elif type == "FDM":
+        raise NotImplementedError()
+    elif type == "ADI":
+        raise NotImplementedError()
+    elif type == "diagonal":
+        raise NotImplementedError()
+    else:
+        raise NotImplementedError()
+  
+  def build_pazner(self, factor, r = 2):
     precon_dicts = {}
 
     for (ii, jj), dofs in self.dofhandler.iter_cells():
@@ -454,11 +466,11 @@ class AdvectionOperator:
             dtype=float
         )
 
-        A_list, B_list, _ = kronecker_svd(local_operator, Nq, Nq, Nq, Nq, r=2)
+        # A_list, B_list, _ = kronecker_svd(local_operator, Nq, Nq, Nq, Nq, r)
         # A_approx = sum(np.kron(A_list[j], B_list[j]) for j in range(2))
         # err = np.linalg.norm(A_approx - np.eye(Nq**2) - factor * self.M_inv[np.ix_(dofs, dofs)] @ (self.B[np.ix_(dofs, dofs)] - self.G[np.ix_(dofs, dofs)]))
         # print(f"Error for element {e}: {err}.")
-        precon_dicts[e] = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, 2)
+        precon_dicts[e] = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, r)
         
     def matvec(v):
         v = v.reshape(self.ndofs)
@@ -467,13 +479,16 @@ class AdvectionOperator:
         for (ii, jj), dofs in self.dofhandler.iter_cells():
             e = (ii, jj)
             v_local = v[dofs]
-            w[dofs] = apply_2d_preconditioner(v_local, precon_dicts[e])
+            w[dofs] = apply_2d_preconditioner(v_local, precon_dicts[e], m2=None, n2=None, r=r)
         
         return w
 
     return LinearOperator(shape=(self.ndofs, self.ndofs),matvec=matvec, dtype=float)
 
-  def build_improved_preconditioner(self, factor, k):
+  def build_improved_preconditioner(self, factor, k, case = "pazner", r = 2):
+    if case != "pazner":
+        raise NotImplementedError()
+    
     # 1. SETUP PHASE (Runs ONCE before GMRES)
     cell_data = []  # Store the precomputed matrices for each cell
     
@@ -498,14 +513,14 @@ class AdvectionOperator:
         )
         
         # Base preconditioner P1
-        precon_dict = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, 2)
+        precon_dict = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, r)
         
         # Error operator (E = A - P1)
         def loc_rest_matvec(v_loc):
-            return loc_matvec(v_loc) - apply_P1_forward(v_loc, precon_dict)
+            return loc_matvec(v_loc) - apply_P1_forward(v_loc, precon_dict, r)
         
         def loc_rest_tmatvec(v_loc):
-            return loc_tmatvec(v_loc) - apply_P1_transposed_forward(v_loc, precon_dict)
+            return loc_tmatvec(v_loc) - apply_P1_transposed_forward(v_loc, precon_dict, r)
         
         # Randomized SVD (Note: pass ndofs_loc, not self.ndofs!)
         U, V = rsvd(loc_rest_matvec, loc_rest_tmatvec, Nq**2, k, factors=2)
@@ -513,7 +528,7 @@ class AdvectionOperator:
         # Precompute PU = P1^{-1} U (Process column-by-column)
         PU = np.zeros_like(U)
         for col in range(k):
-            PU[:, col] = apply_2d_preconditioner(U[:, col], precon_dict)
+            PU[:, col] = apply_2d_preconditioner(U[:, col], precon_dict, m2=None, n2=None, r=r)
             
         # Precompute Woodbury Core = (I_k + V^T P1^{-1} U)^{-1}
         core_inv = np.linalg.pinv(np.eye(k) + V @ PU, rcond=1e-12)
@@ -537,7 +552,7 @@ class AdvectionOperator:
             v_local = v[dofs]
             
             # Base solve: w_1 = P1^{-1} v
-            w_base = apply_2d_preconditioner(v_local, cell['precon_dict'])
+            w_base = apply_2d_preconditioner(v_local, cell['precon_dict'], m2=None, n2=None, r=r)
             
             # Woodbury update: PU @ core_inv @ V^T @ w_base
             update = cell['PU'] @ (cell['core_inv'] @ (cell['V'] @ w_base))
@@ -1170,7 +1185,7 @@ def run_precon():
             elif rk > 1:
                 factor = rk_stepper.A[1, 1]
             gmres_operator = operator.build_operator(h * factor)
-            preconditioner = operator.build_preconditioner(h * factor)
+            preconditioner = operator.build_preconditioner(h * factor, "pazner", r=1)
             
             iter = 0 
             avg_iterations_global = 0
@@ -1238,7 +1253,7 @@ def run_improved_precon():
                 elif rk > 1:
                     factor = rk_stepper.A[1, 1]
                 gmres_operator = operator.build_operator(h * factor)
-                preconditioner = operator.build_improved_preconditioner(h * factor, k)
+                preconditioner = operator.build_improved_preconditioner(h * factor, k, "pazner", 1)
                 
                 iter = 0 
                 avg_iterations_global = 0
@@ -1268,4 +1283,4 @@ def run_improved_precon():
 # run_explicit()
 # run_implicit()
 # run_precon()
-# run_improved_precon()
+run_improved_precon()
