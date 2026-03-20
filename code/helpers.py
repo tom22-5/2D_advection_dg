@@ -8,7 +8,7 @@ def print_matrix(name, mat):
     with np.printoptions(precision=4, suppress=True):
         print(mat)
         
-def show(evaluate, time=None):
+def show(evaluate, time=None, case=""):
     # Grid size
     Nx, Ny = 100, 100
 
@@ -27,19 +27,25 @@ def show(evaluate, time=None):
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(111, projection="3d")
 
-    ax.plot_surface(X, Y, Uplot, linewidth=0, antialiased=True)
+    surf = ax.plot_surface(X, Y, Uplot, cmap="viridis", linewidth=0, antialiased=True)
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("u(x,y)")
+    
+    ax.set_zlim(-1.1, 1.1) 
+    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+    
     if time is not None:
         ax.set_title(f"Solution at t = {time}")
         save_dir = "./plots"
         os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, f"snapshot-{time:.2f}.png")
+        save_path = os.path.join(save_dir, f"snapshot-{time:.2f}{case}.png")
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
+        print("Saved solution.")
     else:
         ax.set_title("Solution")
+        print("Closing solution.")
 
     # plt.show()
     plt.close(fig)

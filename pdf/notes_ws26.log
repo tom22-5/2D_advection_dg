@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  19 MAR 2026 14:59
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  20 MAR 2026 08:08
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -626,12 +626,7 @@ been already used, duplicate ignored
 <to be read again> 
                    \relax 
 l.97 
-      [1]
-Overfull \hbox (9.6499pt too wide) in paragraph at lines 104--104
-|[]\OT1/cmr/bx/n/17.28 Randomized Matrix-Free Tensor-Product Pre-con-
- []
-
-[2]
+      [1] [2]
 Underfull \hbox (badness 10000) in paragraph at lines 128--129
 
  []
@@ -646,16 +641,32 @@ Underfull \hbox (badness 10000) in paragraph at lines 158--159
 
  []
 
-(notes_ws26.bbl [3]) [4
+
+Underfull \hbox (badness 10000) in paragraph at lines 163--164
+
+ []
+
+[3]
+Underfull \hbox (badness 10000) in paragraph at lines 165--166
+
+ []
+
+(notes_ws26.bbl [4]) [5
 
 ] (notes_ws26.aux)
-Package rerunfilecheck Info: File `notes_ws26.out' has not changed.
-(rerunfilecheck)             Checksum: C9A05DA1A895A655D0246E0FD41D163B;666.
+
+Package rerunfilecheck Warning: File `notes_ws26.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `notes_ws26.out':
+(rerunfilecheck)             Before: C9A05DA1A895A655D0246E0FD41D163B;666
+(rerunfilecheck)             After:  92CB85B1A4EC0CE4FA17FE2DADA4CBF9;973.
  ) 
 Here is how much of TeX's memory you used:
- 13296 strings out of 476406
- 214339 string characters out of 2789568
- 1864787 words of memory out of 3000000
+ 13298 strings out of 476406
+ 214356 string characters out of 2789568
+ 1865787 words of memory out of 3000000
  33451 multiletter control sequences out of 15000+600000
  521696 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -672,9 +683,9 @@ Data/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/
 ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C
 :/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmti
 12.pfb>
-Output written on notes_ws26.pdf (6 pages, 158794 bytes).
+Output written on notes_ws26.pdf (7 pages, 161259 bytes).
 PDF statistics:
- 121 PDF objects out of 1000 (max. 8388607)
- 26 named destinations out of 1000 (max. 500000)
+ 128 PDF objects out of 1000 (max. 8388607)
+ 28 named destinations out of 1000 (max. 500000)
  17 words of extra memory for PDF output out of 10000 (max. 10000000)
 
