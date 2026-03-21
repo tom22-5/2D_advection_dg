@@ -251,7 +251,7 @@ class RungeKuttaMethod:
                             M=preconditioner,
                             rtol=1e-10,
                             atol=1e-14,
-                            maxiter=50,
+                            maxiter=150,
                             callback=count_iterations
                         )
                         # print("GMRES iterations with preconditioner:", iter_count[0])
@@ -262,7 +262,7 @@ class RungeKuttaMethod:
                             rhs_flat,
                             rtol=1e-10,
                             atol=1e-14,
-                            maxiter=50,
+                            maxiter=150,
                             callback=count_iterations
                         )
                         # print("GMRES iterations without preconditioner:", iter_count[0])

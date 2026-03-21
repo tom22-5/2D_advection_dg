@@ -433,139 +433,178 @@ class AdvectionOperator:
     )
     return linear_operator
   
-  def build_preconditioner(self, factor, type = "pazner", r=2):
+  def build_local_operator(self, dofs, factor):
+    dofs = np.array(dofs)
+    Mloc = self.M_inv[np.ix_(dofs, dofs)]
+    Bloc = self.B    [np.ix_(dofs, dofs)]
+    Gloc = self.G    [np.ix_(dofs, dofs)]
+    
+    # Local operators
+    def loc_matvec(v_loc):
+        return v_loc - factor * (Mloc @ ((Bloc - Gloc) @ v_loc))
+        
+    def loc_tmatvec(v_loc):
+        return v_loc - factor * ((Bloc.T - Gloc.T) @ (Mloc.T @ v_loc))
+                
+    local_operator = LinearOperator(
+        shape=(Nq**2, Nq**2),
+        matvec=loc_matvec,
+        rmatvec=loc_tmatvec,
+        dtype=float
+    )
+    return local_operator
+  
+  def build_local_preconditioner(self, local_operator, type = "pazner", r=None, k=None):
     if type == "pazner":
-        return self.build_pazner(factor, r)
+        precon, _ = self.build_local_pazner(local_operator, r)
+        return precon
+    elif type == "pazner_woodbury":
+        return self.build_local_woodbury(local_operator, k, "pazner", r)
+    elif type == "diagonal_woodbury":
+        return self.build_local_woodbury(local_operator, k, "diagonal", None)
     elif type == "FDM":
         raise NotImplementedError()
     elif type == "ADI":
         raise NotImplementedError()
     elif type == "diagonal":
-        raise NotImplementedError()
+        precon, _ = self.build_local_diagonal(local_operator)
+        return precon
     else:
         raise NotImplementedError()
+    
+  def build_local_pazner(self, local_operator, r):
+    precon_dict = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, r)
+    
+    def loc_matvec(v):
+        return apply_2d_preconditioner(v, precon_dict, m2=None, n2=None, r=r)
+    
+    preconditioner = LinearOperator(
+        shape=(Nq**2, Nq**2),
+        matvec=loc_matvec,
+        dtype=float
+    )
+    
+    def loc_inv_matvec(v_loc):
+        return apply_P1_forward(v_loc, precon_dict, r)
+    
+    def loc_inv_tmatvec(v_loc):
+        return apply_P1_transposed_forward(v_loc, precon_dict, r)
+    
+    inv_preconditioner = LinearOperator(
+        shape=(Nq**2, Nq**2),
+        matvec=loc_inv_matvec,
+        rmatvec=loc_inv_tmatvec,
+        dtype=float
+    )
+    
+    return preconditioner, inv_preconditioner
+
+  def build_local_woodbury(self, local_operator, k, type = "pazner", r=None):
+    if type == "pazner":
+        base_precon, base_inv_precon = self.build_local_pazner(local_operator, r)
+    elif type == "diagonal":
+        base_precon, base_inv_precon = self.build_local_diagonal(local_operator, r)
+    else:
+        raise NotImplementedError()
+      
+    def loc_rest_matvec(v_loc):
+        return local_operator.matmat(v_loc) - base_inv_precon.matmat(v_loc)
+    
+    def loc_rest_tmatvec(v_loc):
+        return local_operator.rmatmat(v_loc) - base_inv_precon.rmatmat(v_loc)
+    
+    # Randomized SVD (Note: pass ndofs_loc, not self.ndofs!)
+    U, V = rsvd(loc_rest_matvec, loc_rest_tmatvec, Nq**2, k, factors=2)
+    
+    # Precompute PU = P1^{-1} U (Process column-by-column)
+    PU = np.zeros_like(U)
+    for col in range(k):
+        PU[:, col] = base_precon.matvec(U[:, col])
+        
+    # Precompute Woodbury Core = (I_k + V^T P1^{-1} U)^{-1}
+    core_inv = np.linalg.pinv(np.eye(k) + V @ PU, rcond=1e-12)
+    
+    def loc_matvec(v_local):
+        w_base = base_precon.matvec(v_local)        
+        update = PU @ (core_inv @ (V @ w_base)) # Woodbury update: PU @ core_inv @ V^T @ w_base
+        return w_base - update
+    
+    return LinearOperator(
+        shape=(Nq**2, Nq**2),
+        matvec=loc_matvec,
+        dtype=float
+    )
   
-  def build_pazner(self, factor, r = 2):
-    precon_dicts = {}
-
+  def build_local_diagonal(self, local_operator):
+      N = local_operator.shape[0]
+      diag_A = np.zeros(N)
+      
+      # 1. Extract the diagonal using standard basis vectors
+      e = np.zeros(N)
+      for i in range(N):
+          e[i] = 1.0
+          diag_A[i] = local_operator.matvec(e)[i]
+          e[i] = 0.0
+          
+      # 2. The Preconditioner (Inverse Diagonal)
+      inv_diag_A = 1.0 / diag_A
+      
+      def loc_matvec(v_loc):
+          # Diagonal application is just element-wise multiplication!
+          return inv_diag_A * v_loc
+          
+      def loc_tmatvec(v_loc):
+          return inv_diag_A * v_loc
+          
+      preconditioner = LinearOperator(
+          shape=(N, N),
+          matvec=loc_matvec,
+          rmatvec=loc_tmatvec,
+          dtype=float
+      )
+      
+      # 3. The Forward Operator (Required for Woodbury error sketching E = A - P)
+      def loc_inv_matvec(v_loc):
+          return diag_A * v_loc
+          
+      def loc_inv_tmatvec(v_loc):
+          return diag_A * v_loc
+          
+      inv_preconditioner = LinearOperator(
+          shape=(N, N),
+          matvec=loc_inv_matvec,
+          rmatvec=loc_inv_tmatvec,
+          dtype=float
+      )
+      
+      return preconditioner, inv_preconditioner
+  
+  def build_local_fdm(self, local_operator):
+      pass
+  
+  def build_local_adi(self, local_operator):
+      pass
+  
+  def build_preconditioner(self, factor, type = "pazner", r=None, k=None):        
+    # --- 1. SETUP PHASE (Runs ONCE) ---
+    cell_preconditioners = {}
+    
     for (ii, jj), dofs in self.dofhandler.iter_cells():
-        e = (ii, jj)
-        dofs = np.array(dofs)
-        Mloc = self.M_inv[np.ix_(dofs, dofs)]
-        Bloc = self.B    [np.ix_(dofs, dofs)]
-        Gloc = self.G    [np.ix_(dofs, dofs)]
-        
-        def loc_matvec(v_loc):
-            return v_loc - factor * (
-                Mloc @ ((Bloc - Gloc) @ v_loc)
-            )
-                    
-        local_operator = LinearOperator(
-            shape=(Nq**2, Nq**2),
-            matvec=loc_matvec,
-            dtype=float
-        )
+        local_operator = self.build_local_operator(dofs, factor)
+        cell_preconditioners[(ii, jj)] = self.build_local_preconditioner(local_operator, type, r, k)
 
-        # A_list, B_list, _ = kronecker_svd(local_operator, Nq, Nq, Nq, Nq, r)
-        # A_approx = sum(np.kron(A_list[j], B_list[j]) for j in range(2))
-        # err = np.linalg.norm(A_approx - np.eye(Nq**2) - factor * self.M_inv[np.ix_(dofs, dofs)] @ (self.B[np.ix_(dofs, dofs)] - self.G[np.ix_(dofs, dofs)]))
-        # print(f"Error for element {e}: {err}.")
-        precon_dicts[e] = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, r)
-        
+    # --- 2. APPLICATION PHASE (Runs EVERY GMRES iteration) ---
     def matvec(v):
         v = v.reshape(self.ndofs)
         w = np.zeros(self.ndofs)
         
         for (ii, jj), dofs in self.dofhandler.iter_cells():
-            e = (ii, jj)
             v_local = v[dofs]
-            w[dofs] = apply_2d_preconditioner(v_local, precon_dicts[e], m2=None, n2=None, r=r)
+            w[dofs] = cell_preconditioners[(ii, jj)].matvec(v_local)
         
         return w
 
-    return LinearOperator(shape=(self.ndofs, self.ndofs),matvec=matvec, dtype=float)
-
-  def build_improved_preconditioner(self, factor, k, case = "pazner", r = 2):
-    if case != "pazner":
-        raise NotImplementedError()
-    
-    # 1. SETUP PHASE (Runs ONCE before GMRES)
-    cell_data = []  # Store the precomputed matrices for each cell
-    
-    for (ii, jj), dofs in self.dofhandler.iter_cells():
-        ndofs_loc = self.ndofs
-        dofs = np.array(dofs)
-        Mloc = self.M_inv[np.ix_(dofs, dofs)]
-        Bloc = self.B    [np.ix_(dofs, dofs)]
-        Gloc = self.G    [np.ix_(dofs, dofs)]
-        
-        # Local operators
-        def loc_matvec(v_loc):
-            return v_loc - factor * (Mloc @ ((Bloc - Gloc) @ v_loc))
-            
-        def loc_tmatvec(v_loc):
-            return v_loc - factor * ((Bloc.T - Gloc.T) @ (Mloc.T @ v_loc))
-                    
-        local_operator = LinearOperator(
-            shape=(Nq**2, Nq**2),
-            matvec=loc_matvec,
-            dtype=float
-        )
-        
-        # Base preconditioner P1
-        precon_dict = form_2d_preconditioner(local_operator, Nq, Nq, Nq, Nq, r)
-        
-        # Error operator (E = A - P1)
-        def loc_rest_matvec(v_loc):
-            return loc_matvec(v_loc) - apply_P1_forward(v_loc, precon_dict, r)
-        
-        def loc_rest_tmatvec(v_loc):
-            return loc_tmatvec(v_loc) - apply_P1_transposed_forward(v_loc, precon_dict, r)
-        
-        # Randomized SVD (Note: pass ndofs_loc, not self.ndofs!)
-        U, V = rsvd(loc_rest_matvec, loc_rest_tmatvec, Nq**2, k, factors=2)
-        
-        # Precompute PU = P1^{-1} U (Process column-by-column)
-        PU = np.zeros_like(U)
-        for col in range(k):
-            PU[:, col] = apply_2d_preconditioner(U[:, col], precon_dict, m2=None, n2=None, r=r)
-            
-        # Precompute Woodbury Core = (I_k + V^T P1^{-1} U)^{-1}
-        core_inv = np.linalg.pinv(np.eye(k) + V @ PU, rcond=1e-12)
-        
-        # Save everything needed for GMRES into memory
-        cell_data.append({
-            'dofs': dofs,
-            'precon_dict': precon_dict,
-            'PU': PU,
-            'V': V,
-            'core_inv': core_inv
-        })
-
-    # 2. APPLICATION PHASE (Runs EVERY GMRES iteration)
-    def matvec(v):
-        v = v.reshape(self.ndofs)
-        w = np.zeros(self.ndofs)
-        
-        for cell in cell_data:
-            dofs = cell['dofs']
-            v_local = v[dofs]
-            
-            # Base solve: w_1 = P1^{-1} v
-            w_base = apply_2d_preconditioner(v_local, cell['precon_dict'], m2=None, n2=None, r=r)
-            
-            # Woodbury update: PU @ core_inv @ V^T @ w_base
-            update = cell['PU'] @ (cell['core_inv'] @ (cell['V'] @ w_base))
-            w[dofs] = w_base - update
-            
-        return w
-
-    # Return the global preconditioned operator
-    return LinearOperator(
-        shape=(self.ndofs, self.ndofs),
-        matvec=matvec,
-        dtype=float
-    )
+    return LinearOperator(shape=(self.ndofs, self.ndofs), matvec=matvec, dtype=float)
       
 ### tests
 # test 1: constant solution
@@ -962,7 +1001,7 @@ def test_application():
 def make_snapshots():
     for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
         print(f"Printing solution at t = {t}.")
-        show(lambda x, y: exact_solution(x, y, t), t, "-rotating") 
+        show(lambda x, y: exact_solution(x, y, t), t, f"-{velocity}") 
 
 def plot_errors(step_sizes, errors, initial_error, name="rk_convergence"):
     plt.figure(figsize=(8, 6))
@@ -1225,62 +1264,78 @@ def run_improved_precon():
     print(f"Average distance: {initial_error}")
             
     step_sizes = [0.1, 0.05, 0.01, 0.005]
-    ranks = [1, 2, 4, 8, 16]
-    errors = {1: [], 2: [], 3: [], 4: []}
-    runtime = {1: [], 2: [], 3: [], 4: []}
-    iterations = {1: [], 2: [], 3: [], 4: []}
-    for rk in [1, 2, 3, 4]:
-        for h in step_sizes:
-            for k in ranks:
-                name = f"{velocity}_rk_improved_precon_convergence_k={k}"
-                name_time = f"{velocity}_rk_improved_precon_runtime_k={k}"
-                name_iterations = f"{velocity}_rk_improved_precon_iterations_k={k}"
-                print(f"Running experiment: rk={rk}, h={h}, k={k}.")
-                start = time.perf_counter()
-                t = start_time
-                operator.set_time(t)
-                U = operator.interpolate(t)
-                
-                rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
-                rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
-                def F(t, A):
+    ranks = [2, 4, 8, 16]
+    types = ["pazner1", "pazner2", "diagonal", "pazner1_woodbury", "pazner2_woodbury", "diagonal_woodbury"]
+    for type in types:
+        for k in ranks:
+            if type in ["pazner1", "pazner2", "diagonal"] and k > 2:
+                continue
+            errors = {1: [], 2: [], 3: [], 4: []}
+            runtime = {1: [], 2: [], 3: [], 4: []}
+            iterations = {1: [], 2: [], 3: [], 4: []}
+            name = f"{type}_{velocity}_rk_improved_precon_convergence_k={k}"
+            name_time = f"{type}_{velocity}_rk_improved_precon_runtime_k={k}"
+            name_iterations = f"{type}_{velocity}_rk_improved_precon_iterations_k={k}"
+            
+            print(f"Running experiment: {type}, k={k}.")
+            for rk in [1, 2, 3, 4]:
+                for h in step_sizes:
+                    # print(f"Running experiment: {type}, rk={rk}, h={h}, k={k}.")
+                    start = time.perf_counter()
+                    t = start_time
                     operator.set_time(t)
-                    return operator.apply(A)
-                
-                factor = 0
-                if rk_stepper.A[0, 0] != 0:
-                    factor = rk_stepper.A[0, 0]
-                elif rk > 1:
-                    factor = rk_stepper.A[1, 1]
-                gmres_operator = operator.build_operator(h * factor)
-                preconditioner = operator.build_improved_preconditioner(h * factor, k, "pazner", 1)
-                
-                iter = 0 
-                avg_iterations_global = 0
-                while np.abs(t - final_time) > h / 2:
-                    U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
-                    t += h
-                    avg_iterations_global += avg_iterations
-                    iter += 1
-                    # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                    # print(f"Average error at time t={t}: {err}.")
+                    U = operator.interpolate(t)
                     
-                avg_iterations_global /= iter
-                end = time.perf_counter()
-                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                errors[rk].append(abs(err))
-                runtime[rk].append(end - start)
-                iterations[rk].append(avg_iterations_global)
-                print(avg_iterations_global)
+                    rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=explicit)
+                    rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+                    def F(t, A):
+                        operator.set_time(t)
+                        return operator.apply(A)
+                    
+                    factor = 0
+                    if rk_stepper.A[0, 0] != 0:
+                        factor = rk_stepper.A[0, 0]
+                    elif rk > 1:
+                        factor = rk_stepper.A[1, 1]
+                    gmres_operator = operator.build_operator(h * factor)
+                    preconditioner = LinearOperator(shape=(operator.ndofs, operator.ndofs), matvec=lambda v: v,dtype=float)
+                    if type == "pazner1":
+                        preconditioner = operator.build_preconditioner(h * factor, "pazner", r=1, k=k)
+                    elif type == "pazner2":
+                        preconditioner = operator.build_preconditioner(h * factor, "pazner", r=2, k=k)
+                    elif type == "pazner1_woodbury":
+                        preconditioner = operator.build_preconditioner(h * factor, "pazner_woodbury", r=1, k=k)
+                    elif type == "pazner2_woodbury":
+                        preconditioner = operator.build_preconditioner(h * factor, "pazner_woodbury", r=2, k=k)
+                    else:
+                        preconditioner = operator.build_preconditioner(h * factor, type, r=None, k=k)
+                    
+                    iter = 0 
+                    avg_iterations_global = 0
+                    while np.abs(t - final_time) > h / 2:
+                        U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
+                        t += h
+                        avg_iterations_global += avg_iterations
+                        iter += 1
+                        # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                        # print(f"Average error at time t={t}: {err}.")
+                        
+                    avg_iterations_global /= iter
+                    end = time.perf_counter()
+                    err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                    errors[rk].append(abs(err))
+                    runtime[rk].append(end - start)
+                    iterations[rk].append(avg_iterations_global)
+                    # print(avg_iterations_global)
     
-    plot_errors(step_sizes, errors, initial_error, name)
-    print(errors)
-    plot_runtimes(step_sizes, runtime, name_time)
-    print(runtime)
-    plot_iterations(step_sizes, iterations, name_iterations)
-    print(iterations)
+            plot_errors(step_sizes, errors, initial_error, name)
+            print(errors)
+            plot_runtimes(step_sizes, runtime, name_time)
+            print(runtime)
+            plot_iterations(step_sizes, iterations, name_iterations)
+            print(iterations)
 
+# make_snapshots()
 # run_explicit()
-# run_implicit()
-# run_precon()
 run_improved_precon()
+run_implicit()
