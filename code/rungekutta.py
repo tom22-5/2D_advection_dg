@@ -271,7 +271,7 @@ class RungeKuttaMethod:
                     # Back to DG vector shape
                     Yi = Yi_flat.reshape(n, 1)
                     
-                    K_stages[j] = operator.M_inv @ ((operator.B - operator.G) @ Yi - operator.Gbound)
+                    K_stages[j] = operator.M_inv @ ((operator.B - operator.G) @ Yi - operator.Gbound + operator.source)
 
             # Final combination: sum_j b[j] * K_stages[j]
             final_sum = np.zeros_like(A0)

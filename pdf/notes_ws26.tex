@@ -169,6 +169,192 @@ This is why we increase the complexity of the problem. Instead of using a consta
 
 We expect this to no longer be a case in 3D. Alternatively, we can use a worse preconditioner. Either Pazner with $r = 1$ or simply the matrix diagonal. The latter might be too bad to capture the full-rank fluid dynamics and thus requires massive rank in our Woodbury improvement, which is likely too costly. The first option is thus preferred and the results are promising. The higher the rank of our Woodbury patch, the lower the number of iterations. Ranks $k = 8-16$ even deliver as few iterations as the $r = 2$ Pazner preconditioner. This is remarkable because it suggests that in 3D, combining $r = 2$ and moderately high $k$ can reduce the number of iterations to $r = 3$ Pazner preconditioning, which is infeasible in practice without losing $\mathcal{O}(p^{d+1})$. \\
 
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Pazner ($r=1$)}} 
+ & \multicolumn{4}{c}{\textbf{Pazner ($r=2$)}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 61.00 & 38.00 & 15.20 & 11.75 
+  & 19.00 & 15.00 & 9.60 & 8.10 \\
+2 & 53.00 & 33.50 & 14.00 & 10.78 
+  & 18.50 & 13.00 & 9.00 & 8.00 \\
+3 & 64.67 & 40.00 & 15.93 & 12.00 
+  & 20.00 & 16.00 & 10.00 & 8.45 \\
+4 & 27.75 & 17.25 & 8.25 & 6.68 
+  & 10.50 & 8.25 & 6.00 & 5.74 \\
+\hline
+\end{tabular}
+\caption{Average number of GMRES iterations for RK methods using Pazner's preconditioner with rank $r=1$ versus rank $r=2$ with respect to step sizes $h$ and stage numbers.}
+\label{tab:pazner_comparison}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Diagonal Preconditioner}} 
+ & \multicolumn{4}{c}{\textbf{Without Preconditioner}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 150.00 & 150.00 & 39.00 & 23.00 
+  & 150.00 & 150.00 & 29.30 & 14.65 \\
+2 & 150.00 & 136.25 & 32.40 & 19.00 
+  & 150.00 & 136.75 & 23.70 & 12.43 \\
+3 & 150.00 & 150.00 & 41.70 & 24.00 
+  & 150.00 & 150.00 & 32.50 & 15.65 \\
+4 & 108.25 & 59.00  & 15.98 & 9.75  
+  & 112.50 & 55.13  & 9.95  & 6.58  \\
+\hline
+\end{tabular}
+\caption{Average number of GMRES iterations for RK methods using the Diagonal preconditioner compared to a plain implicit solver without preconditioning. Notably, for smaller step sizes ($h \le 0.01$), the diagonal preconditioner degrades the spectrum and increases iteration counts compared to the un-preconditioned system. Values of 150.00 indicate GMRES stalled at the maximum iteration limit.}
+\label{tab:diagonal_vs_none}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{c|cccc|cccc|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
+ & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 55.00 & 35.50 & 15.00 & 12.00 
+  & 44.00 & 31.50 & 14.00 & 11.00 
+  & 30.00 & 22.00 & 12.00 & 10.00 
+  & 19.00 & 15.00 & 9.60  & 8.00 \\
+2 & 45.00 & 31.00 & 14.00 & 11.00 
+  & 38.00 & 27.50 & 13.00 & 10.43 
+  & 27.00 & 20.25 & 11.20 & 9.00 
+  & 18.50 & 13.00 & 9.00  & 8.00 \\
+3 & 55.33 & 36.00 & 15.87 & 12.00 
+  & 49.67 & 32.17 & 15.00 & 11.17 
+  & 32.67 & 22.00 & 12.00 & 10.00 
+  & 19.00 & 16.00 & 10.00 & 8.27 \\
+4 & 24.00 & 16.50 & 8.25  & 6.75 
+  & 21.00 & 15.75 & 8.25  & 6.75 
+  & 16.50 & 11.38 & 7.50  & 6.00 
+  & 10.50 & 8.25  & 6.00  & 5.56 \\
+\hline
+\end{tabular}
+}
+\caption{Average number of GMRES iterations for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k \in \{2, 4, 8, 16\}$. Notice the convergence to the exact $r=2$ iteration baseline at $k=16$.}
+\label{tab:woodbury_k_comparison}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{c|cccc|cccc|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
+ & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 2.58 & 3.00 & 7.81  & 13.70 
+  & 2.81 & 3.57 & 8.98  & 15.92 
+  & 2.42 & 3.06 & 9.04  & 16.27 
+  & 1.98 & 2.25 & 7.07  & 12.33 \\
+2 & 3.44 & 4.94 & 15.19 & 31.54 
+  & 3.55 & 5.27 & 16.12 & 30.50 
+  & 3.28 & 4.82 & 15.30 & 27.84 
+  & 2.41 & 3.58 & 12.64 & 23.78 \\
+3 & 7.42 & 10.85 & 28.00 & 44.13 
+  & 5.88 & 9.20 & 26.39 & 45.14 
+  & 4.47 & 6.77 & 22.72 & 40.45 
+  & 3.25 & 5.37 & 19.67 & 35.93 \\
+4 & 4.29 & 6.77 & 21.83 & 38.48 
+  & 4.21 & 6.30 & 20.01 & 35.01 
+  & 3.15 & 4.64 & 15.68 & 28.17 
+  & 2.73 & 4.05 & 14.61 & 28.07 \\
+\hline
+\end{tabular}
+}
+\caption{Total runtime (in seconds) for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k$. Notice that increasing the rank to $k=16$ yields the fastest overall runtimes due to the drastic reduction in GMRES iterations.}
+\label{tab:woodbury_runtime}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Pazner ($r=1$)}} 
+ & \multicolumn{4}{c}{\textbf{Pazner ($r=2$)}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 2.32 & 3.94 & 7.66  & 13.11 
+  & 2.14 & 2.61 & 8.31  & 14.95 \\
+2 & 3.48 & 4.80 & 13.73 & 34.26 
+  & 2.90 & 4.14 & 15.57 & 28.97 \\
+3 & 5.66 & 7.47 & 21.79 & 39.04 
+  & 4.25 & 6.91 & 24.82 & 45.31 \\
+4 & 3.75 & 5.33 & 15.37 & 28.08 
+  & 3.28 & 5.15 & 19.31 & 36.47 \\
+\hline
+\end{tabular}
+\caption{Total runtime (in seconds) for RK methods using Pazner's base preconditioner with rank $r=1$ versus rank $r=2$.}
+\label{tab:pazner_runtime_comparison}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{c|cccc|cccc|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
+ & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 150.00 & 145.50 & 33.70 & 21.00 
+  & 150.00 & 133.00 & 29.00 & 19.00 
+  & 149.00 & 75.50  & 20.00 & 15.00 
+  & 19.00  & 15.00  & 9.60  & 8.00  \\
+2 & 150.00 & 107.00 & 29.00 & 19.03 
+  & 150.00 & 92.50  & 24.65 & 17.00 
+  & 115.50 & 51.00  & 18.10 & 13.00 
+  & 18.50  & 13.00  & 9.00  & 8.00  \\
+3 & 150.00 & 150.00 & 35.03 & 21.78 
+  & 150.00 & 137.67 & 30.00 & 19.17 
+  & 138.67 & 69.83  & 21.07 & 15.00 
+  & 19.00  & 16.00  & 10.00 & 8.27  \\
+4 & 89.25  & 45.38  & 14.93 & 10.46 
+  & 88.25  & 39.00  & 12.75 & 9.45  
+  & 48.00  & 25.50  & 10.50 & 8.25  
+  & 10.50  & 8.25   & 6.00  & 5.56  \\
+\hline
+\end{tabular}
+}
+\caption{Average number of GMRES iterations for RK methods using a Diagonal base preconditioner augmented with a randomized Woodbury update. Notice that at $k=16$, the randomized update completely maps the missing cross-derivative physics, rescuing the solver from stagnation and achieving optimal iteration counts.}
+\label{tab:diagonal_woodbury_comparison}
+\end{table}
+
 \textbf{Enter nice graphics and present to Martin.}
 
 Next, we can do the following:

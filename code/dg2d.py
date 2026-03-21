@@ -30,7 +30,7 @@ dx = Lx / Nx
 dy = Ly / Ny
 
 # Hyperparameters polynomials and quadrature
-fe_degree = 3
+fe_degree = 5
 Nq = fe_degree + 1
 basis_type = "lagrange"
 
@@ -503,7 +503,7 @@ class AdvectionOperator:
     if type == "pazner":
         base_precon, base_inv_precon = self.build_local_pazner(local_operator, r)
     elif type == "diagonal":
-        base_precon, base_inv_precon = self.build_local_diagonal(local_operator, r)
+        base_precon, base_inv_precon = self.build_local_diagonal(local_operator)
     else:
         raise NotImplementedError()
       
@@ -551,10 +551,10 @@ class AdvectionOperator:
       
       def loc_matvec(v_loc):
           # Diagonal application is just element-wise multiplication!
-          return inv_diag_A * v_loc
+          return inv_diag_A * v_loc.flatten()
           
       def loc_tmatvec(v_loc):
-          return inv_diag_A * v_loc
+          return inv_diag_A * v_loc.flatten()
           
       preconditioner = LinearOperator(
           shape=(N, N),
@@ -565,10 +565,10 @@ class AdvectionOperator:
       
       # 3. The Forward Operator (Required for Woodbury error sketching E = A - P)
       def loc_inv_matvec(v_loc):
-          return diag_A * v_loc
+          return diag_A * v_loc.flatten()
           
       def loc_inv_tmatvec(v_loc):
-          return diag_A * v_loc
+          return diag_A * v_loc.flatten()
           
       inv_preconditioner = LinearOperator(
           shape=(N, N),
@@ -1176,7 +1176,7 @@ def run_implicit():
             errors[rk].append(abs(err))
             runtime[rk].append(end - start)
             iterations[rk].append(avg_iterations_global)
-            print(avg_iterations_global)
+            # print(avg_iterations_global)
     
     plot_errors(step_sizes, errors, initial_error, name)
     print(errors)
