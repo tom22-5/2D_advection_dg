@@ -1,9 +1,10 @@
 import numpy as np
 
 class StructuredMesh2D:
-    def __init__(self, nx, ny, x_range=(0, 1), y_range=(0, 1)):
+    def __init__(self, nx, ny, periodic, x_range=(0, 1), y_range=(0, 1)):
         self.nx, self.ny = nx, ny
         self.x_range, self.y_range = x_range, y_range
+        self.periodic = periodic
 
         # uniform spacing
         self.dx = (x_range[1] - x_range[0]) / nx
@@ -25,10 +26,16 @@ class StructuredMesh2D:
            None if boundary.
         """
         neigh = {}
-        neigh["left"]   = (i-1, j) if i > 0 else None
-        neigh["right"]  = (i+1, j) if i < self.nx-1 else None
-        neigh["bottom"] = (i, j-1) if j > 0 else None
-        neigh["top"]    = (i, j+1) if j < self.ny-1 else None
+        if self.periodic:
+            neigh["left"]   = (i-1, j) if i > 0 else (self.nx-1, j)
+            neigh["right"]  = (i+1, j) if i < self.nx-1 else (0, j)
+            neigh["bottom"] = (i, j-1) if j > 0 else (i, self.ny-1)
+            neigh["top"]    = (i, j+1) if j < self.ny-1 else (i, 0)         
+        else:
+            neigh["left"]   = (i-1, j) if i > 0 else None
+            neigh["right"]  = (i+1, j) if i < self.nx-1 else None
+            neigh["bottom"] = (i, j-1) if j > 0 else None
+            neigh["top"]    = (i, j+1) if j < self.ny-1 else None
         return neigh
 
     def face_normals(self):

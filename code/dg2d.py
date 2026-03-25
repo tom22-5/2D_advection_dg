@@ -17,13 +17,14 @@ import os
 dim = 2
 flux_alpha = 1.0
 start_time = 0
-final_time = 0.1
+final_time = 8.0
 flux = "upwind"
-velocity = "rotating"
+velocity = "complicated"
+periodic = True if (velocity == "complicated") else False 
 
 # Hyperparameters grid
-Nx = 10
-Ny = 10
+Nx = 32
+Ny = 32
 Lx = 1.0
 Ly = 1.0
 dx = Lx / Nx
@@ -46,7 +47,7 @@ def exact_solution(x1, x2, t):
     if velocity == "rotating":
         return np.sin(np.pi * x1) * np.sin(np.pi * x2) * np.cos(t)
     else:
-        return initial_solution(x1 - transport_speed(x1, x2)[0] * t, x2 - transport_speed(x1, x2)[1] * t)
+        return initial_solution(x1 - transport_speed(x1, x2, t)[0] * t, x2 - transport_speed(x1, x2, t)[1] * t)
   
 # exact solution at boundary
 def boundary_solution(x1, x2, t):
@@ -55,9 +56,23 @@ def boundary_solution(x1, x2, t):
     return exact_solution(x1, x2, t)
   
 # constant tranport speed in spacetime
-def transport_speed(x1, x2):
+def transport_speed(x1, x2, time = 0.0):
     if velocity == "rotating":
         return np.array([-x2, x1]) # rotating velocity vortex
+    elif velocity == "complicated":
+        factor = np.cos(np.pi * time / final_time) * 2.;
+        return np.array([
+            factor * (np.sin(2 * np.pi * x2) *
+                              np.sin(np.pi * x1) *
+                              np.sin(np.pi * x1) +
+                            0.2 * np.sin(80 * np.pi * (x1 + 0.2)) *
+                              np.cos(80 * np.pi * (x2 + 0.3))),
+            -factor * (np.sin(2 * np.pi * x1) *
+                               np.sin(np.pi * x2) *
+                               np.sin(np.pi * x2) +
+                             0.2 * np.cos(80 * np.pi * (x1 + 0.2)) *
+                               np.sin(80 * np.pi * (x2 + 0.3)))
+        ])
     else:
         return np.array([1.0, 1.0]) # constant advection
         
@@ -204,7 +219,7 @@ class CellWiseOperator:
         
     return M_loc
 
-  def local_volume(self, ii, jj, tp = False):
+  def local_volume(self, ii, jj, time = start_time, tp = False):
     if tp:
         B_loc = (np.kron(self.phi1D.T @ self.wts1D, self.dphi1D.T @ self.wts1D) + np.kron(self.dphi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D)) @ self.jac(ii, jj) @ np.kron(self.phi1D, self.phi1D)
     else:           
@@ -217,7 +232,7 @@ class CellWiseOperator:
                     x1 = self.quad_pts2D[q][0]
                     x2 = self.quad_pts2D[q][1]
                     x1_map, x2_map = self.map_to_original(ii, jj, x1, x2)
-                    B_loc[j,i] += w * self.phi[q,i] * np.dot(transport_speed(x1_map, x2_map), jac @ self.dphi_dx[q,j,:]) * det_jac
+                    B_loc[j,i] += w * self.phi[q,i] * np.dot(transport_speed(x1_map, x2_map, time), jac @ self.dphi_dx[q,j,:]) * det_jac
     return B_loc
 
   def local_source(self, ii, jj, t):
@@ -270,7 +285,7 @@ class AdvectionOperator:
         self.dofhandler = dofhandler
         self.cellop = cellop
         self.ndofs = dofhandler.ndofs
-        self.time = 0
+        self.time = t
         self.M = np.zeros((self.ndofs, self.ndofs))
         self.M_inv = np.zeros((self.ndofs, self.ndofs))
         self.B = np.zeros((self.ndofs, self.ndofs))
@@ -283,7 +298,7 @@ class AdvectionOperator:
       for (ii, jj), dofs in self.dofhandler.iter_cells():
           # local mass, volume and source
           M_loc = self.cellop.local_mass(ii, jj)
-          B_loc = self.cellop.local_volume(ii, jj)
+          B_loc = self.cellop.local_volume(ii, jj, self.time)
           M_loc_inv = np.linalg.inv(M_loc)
           source_loc = self.cellop.local_source(ii, jj, self.time)
 
@@ -310,7 +325,7 @@ class AdvectionOperator:
                 for q, qpt in enumerate(self.cellop.qpts):
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
-                    normal_speed = transport_speed(x1, x2) @ normal               
+                    normal_speed = transport_speed(x1, x2, self.time) @ normal               
                     qwt = self.cellop.qwts[q]
                     
                     if normal_speed < 0: # inflow  
@@ -324,7 +339,7 @@ class AdvectionOperator:
                 for q, qpt in enumerate(self.cellop.qpts):
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
-                    normal_speed = transport_speed(x1, x2) @ normal               
+                    normal_speed = transport_speed(x1, x2, self.time) @ normal               
                     qwt = self.cellop.qwts[q]
 
                     if normal_speed < 0: # inflow  
@@ -368,7 +383,7 @@ class AdvectionOperator:
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
-                    normal_speed = transport_speed(x1, x2) @ normal 
+                    normal_speed = transport_speed(x1, x2, self.time) @ normal 
                     qwt = self.cellop.qwts[q]
                     
                     if normal_speed < 0: # inflow  
@@ -611,7 +626,7 @@ class AdvectionOperator:
 # only works for constant velocity
 def test_constant_solution():
     t = 0.0
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     op = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -655,7 +670,7 @@ def inspect_G_on_constant(op):
 # test 2: time derivative for 2D sine
 def test_time_derivative():
     t = 1.0
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     op = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -1076,7 +1091,7 @@ def run_explicit():
     name = f"{velocity}_rk_explicit_convergence"
     name_time = f"{velocity}_rk_explicit_runtime"
     t = start_time
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -1126,7 +1141,7 @@ def run_implicit():
     name_time = f"{velocity}_rk_implicit_runtime"
     name_iterations = f"{velocity}_rk_implicit_iterations"
     t = start_time
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -1135,11 +1150,11 @@ def run_implicit():
     initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
     print(f"Average distance: {initial_error}")
             
-    step_sizes = [0.1, 0.05, 0.01, 0.005]
+    step_sizes = [0.05]
     errors = {1: [], 2: [], 3: [], 4: []}
     runtime = {1: [], 2: [], 3: [], 4: []}
     iterations = {1: [], 2: [], 3: [], 4: []}
-    for rk in [1, 2, 3, 4]:
+    for rk in [4]:
         for h in step_sizes:
             print(f"Running experiment: rk={rk}, h={h}.")
             start = time.perf_counter()
@@ -1167,8 +1182,8 @@ def run_implicit():
                 t += h
                 avg_iterations_global += avg_iterations
                 iter += 1
-                # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                # print(f"Average error at time t={t}: {err}.")
+                err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                print(f"Average error at time t={t}: {err}.")
                 
             avg_iterations_global /= iter
             end = time.perf_counter()
@@ -1191,7 +1206,7 @@ def run_precon():
     name_time = f"{velocity}_rk_precon_runtime"
     name_iterations = f"{velocity}_rk_precon_iterations"
     t = start_time
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -1254,7 +1269,7 @@ def run_precon():
 def run_improved_precon():
     explicit = False
     t = start_time
-    mesh = StructuredMesh2D(Nx, Ny)
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
     operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
@@ -1326,7 +1341,7 @@ def run_improved_precon():
                     errors[rk].append(abs(err))
                     runtime[rk].append(end - start)
                     iterations[rk].append(avg_iterations_global)
-                    # print(avg_iterations_global)
+                    print(avg_iterations_global)
     
             plot_errors(step_sizes, errors, initial_error, name)
             print(errors)
@@ -1337,5 +1352,5 @@ def run_improved_precon():
 
 # make_snapshots()
 # run_explicit()
-run_improved_precon()
+# run_improved_precon()
 run_implicit()
