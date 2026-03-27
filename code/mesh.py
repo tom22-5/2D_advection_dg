@@ -1,7 +1,7 @@
 import numpy as np
 
 class StructuredMesh2D:
-    def __init__(self, nx, ny, periodic, x_range=(0, 1), y_range=(0, 1)):
+    def __init__(self, nx, ny, periodic, x_range=(-1, 1), y_range=(-1, 1)):
         self.nx, self.ny = nx, ny
         self.x_range, self.y_range = x_range, y_range
         self.periodic = periodic

@@ -217,7 +217,7 @@ class RungeKuttaMethod:
             A1 = A0 + h * final_sum_term
             
         elif self.method_type == "dirk":
-            A0 = np.asarray(A0)       
+            A0 = np.asarray(A0).flatten()
             K_stages = np.zeros((self.stage, *A0.shape), dtype=A0.dtype)
             
             for j in range(self.stage):
@@ -245,7 +245,7 @@ class RungeKuttaMethod:
                         
                     if not preconditioner is None:
                         # Solve in flat space
-                        Yi_flat, info = gmres(
+                        Yi, info = gmres(
                             gmres_operator,
                             rhs_flat,
                             M=preconditioner,
@@ -257,7 +257,7 @@ class RungeKuttaMethod:
                         # print("GMRES iterations with preconditioner:", iter_count[0])
                     else:
                         # Solve in flat space
-                        Yi_flat, info = gmres(
+                        Yi, info = gmres(
                             gmres_operator,
                             rhs_flat,
                             rtol=1e-10,
@@ -268,10 +268,7 @@ class RungeKuttaMethod:
                         # print("GMRES iterations without preconditioner:", iter_count[0])
 
                     avg_iterations += iter_count[0]
-                    # Back to DG vector shape
-                    Yi = Yi_flat.reshape(n, 1)
-                    
-                    K_stages[j] = operator.M_inv @ ((operator.B - operator.G) @ Yi - operator.Gbound + operator.source)
+                    K_stages[j] = operator.M_inv @ ((operator.B_minus_G) @ Yi - operator.Gbound + operator.source)
 
             # Final combination: sum_j b[j] * K_stages[j]
             final_sum = np.zeros_like(A0)

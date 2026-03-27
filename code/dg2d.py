@@ -1,80 +1,113 @@
 # Imports
+import os
+import time
+
 import numpy as np
-import matplotlib.pyplot as plt
 from numpy.linalg import norm, svd
-from legendre import legendre, legendre_derivative, gauss_legendre
-from lanczos import lanczos_svd, kronecker_svd
-from rungekutta import rk_scheme, RungeKuttaMethod
+from scipy.sparse import lil_matrix, coo_matrix
+from scipy.sparse.linalg import LinearOperator
+import matplotlib.pyplot as plt
+
 from mesh import StructuredMesh2D
 from dofhandler import DoFHandler2D
+from legendre import legendre, legendre_derivative, gauss_legendre
 from helpers import print_matrix, show, average, lagrange_basis, lagrange_basis_derivative, rsvd
-from scipy.sparse.linalg import LinearOperator
+from rungekutta import rk_scheme, RungeKuttaMethod
 from lanczos import form_2d_preconditioner, apply_2d_preconditioner, apply_2d_preconditioner_transposed, lanczos_svd, kronecker_svd, apply_P1_forward, apply_P1_transposed_forward
-import time
-import os
 
 # Hyperparameters
 dim = 2
 flux_alpha = 1.0
 start_time = 0
-final_time = 8.0
-flux = "upwind"
-velocity = "complicated"
-periodic = True if (velocity == "complicated") else False 
+final_time = 1.0
+flux = "upwind" # upwind
+velocity = "rotating" # constant, rotating, complicated
+periodic = False # periodic, manufactured
 
 # Hyperparameters grid
-Nx = 32
-Ny = 32
+Nx = 16
+Ny = 16
 Lx = 1.0
 Ly = 1.0
 dx = Lx / Nx
 dy = Ly / Ny
 
 # Hyperparameters polynomials and quadrature
-fe_degree = 5
+fe_degree = 4
 Nq = fe_degree + 1
-basis_type = "lagrange"
+basis_type = "lagrange" # lagrange, legendre
+
+print(f"Problem: linear advection, velocity={velocity}, flux={flux}, boundary={'periodic' if periodic else 'Dirichlet'}.")
+print(f"Initializing DG solver with Nx={Nx}, Ny={Ny}, fe_degree={fe_degree}, basis={basis_type}.")
 
 # exact solution at time = 0
 def initial_solution(x1, x2):
     if velocity == "rotating":
         return exact_solution(x1, x2, 0)
-    else:
+    elif velocity == "complicated":
+        return np.exp(-400. * ((x1 - 0.5) * (x1 - 0.5) + (x2 - 0.75) * (x2 - 0.75))) + np.exp(-100. * ((x1 - 0.5) * (x1 - 0.5) + (x2 - 0.25) * (x2 - 0.25)))
+    elif velocity == "constant":
         return np.sin(2.0 * np.pi * x1) * np.sin(2.0 * np.pi * x2)
+    else:
+        raise NotImplementedError()
 
 # exact analytical solution at any time
 def exact_solution(x1, x2, t):
     if velocity == "rotating":
         return np.sin(np.pi * x1) * np.sin(np.pi * x2) * np.cos(t)
-    else:
+    elif velocity == "complicated":
+        if np.abs(t) < 10e-08:
+            return initial_solution(x1, x2)
+        else:
+            raise NotImplementedError()
+    elif velocity == "constant":
         return initial_solution(x1 - transport_speed(x1, x2, t)[0] * t, x2 - transport_speed(x1, x2, t)[1] * t)
+    else:
+        raise NotImplementedError()
   
 # exact solution at boundary
 def boundary_solution(x1, x2, t):
     # if x1 != 1 and x1 != -1 and x2 != 1 and x2 != -1:
     #     raise ValueError("no boundary term")
-    return exact_solution(x1, x2, t)
+    if velocity == "constant":
+        return exact_solution(x1, x2, t)
+    elif velocity == "rotating":
+        return exact_solution(x1, x2, t)
+    else:
+        raise NotImplementedError()
   
 # constant tranport speed in spacetime
 def transport_speed(x1, x2, time = 0.0):
     if velocity == "rotating":
         return np.array([-x2, x1]) # rotating velocity vortex
     elif velocity == "complicated":
-        factor = np.cos(np.pi * time / final_time) * 2.;
-        return np.array([
-            factor * (np.sin(2 * np.pi * x2) *
-                              np.sin(np.pi * x1) *
-                              np.sin(np.pi * x1) +
-                            0.2 * np.sin(80 * np.pi * (x1 + 0.2)) *
-                              np.cos(80 * np.pi * (x2 + 0.3))),
-            -factor * (np.sin(2 * np.pi * x1) *
-                               np.sin(np.pi * x2) *
-                               np.sin(np.pi * x2) +
-                             0.2 * np.cos(80 * np.pi * (x1 + 0.2)) *
-                               np.sin(80 * np.pi * (x2 + 0.3)))
-        ])
-    else:
+        factor = np.cos(np.pi * time / final_time) * 2.0
+        
+        pi_x1 = np.pi * x1
+        pi_x2 = np.pi * x2
+        osc_x = 2.0 * np.pi * (x1 + 0.2)
+        osc_y = 2.0 * np.pi * (x2 + 0.3)
+        
+        sin_pi_x1 = np.sin(pi_x1)
+        sin_pi_x2 = np.sin(pi_x2)
+        
+        sin_2pi_x1 = np.sin(2.0 * pi_x1)
+        sin_2pi_x2 = np.sin(2.0 * pi_x2)
+        
+        sin_osc_x = np.sin(osc_x)
+        cos_osc_x = np.cos(osc_x)
+        
+        sin_osc_y = np.sin(osc_y)
+        cos_osc_y = np.cos(osc_y)
+        
+        u = factor * (sin_2pi_x2 * sin_pi_x1 * sin_pi_x1 + 0.2 * sin_osc_x * cos_osc_y)
+        v = -factor * (sin_2pi_x1 * sin_pi_x2 * sin_pi_x2 + 0.2 * cos_osc_x * sin_osc_y)
+        
+        return np.array([u, v])
+    elif velocity == "constant":
         return np.array([1.0, 1.0]) # constant advection
+    else:
+        raise NotImplementedError()
         
 # local operator
 class CellWiseOperator:
@@ -206,33 +239,51 @@ class CellWiseOperator:
         raise ValueError("Invalid face")
     return jac
 
-  def local_mass(self, ii, jj, tp = False):
+  def local_mass(self, ii, jj, tp = False, optimized = True):
     if tp:
         M_loc = np.kron(self.phi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D) @ self.jac(ii, jj) @ np.kron(self.phi1D, self.phi1D)
     else:
-        det_jac = self.det_jac(ii, jj)
-        M_loc = np.zeros((Nq**2, Nq**2))
-        for j in range(Nq**2):
-            for i in range(Nq**2):
-                for q, w in enumerate(self.quad_wts2D):
-                    M_loc[j,i] += w * self.phi[q,j] * self.phi[q,i] * det_jac
+        if optimized:
+            det_jac = self.det_jac(ii, jj)
+            w_scaled = np.array(self.quad_wts2D) * det_jac
+            M_loc = self.phi.T @ (w_scaled[:, None] * self.phi)
+        else:
+            det_jac = self.det_jac(ii, jj)
+            M_loc = np.zeros((Nq**2, Nq**2))
+            for j in range(Nq**2):
+                for i in range(Nq**2):
+                    for q, w in enumerate(self.quad_wts2D):
+                        M_loc[j,i] += w * self.phi[q,j] * self.phi[q,i] * det_jac
         
     return M_loc
 
-  def local_volume(self, ii, jj, time = start_time, tp = False):
+  def local_volume(self, ii, jj, time = start_time, tp = False, optimized = True):
     if tp:
-        B_loc = (np.kron(self.phi1D.T @ self.wts1D, self.dphi1D.T @ self.wts1D) + np.kron(self.dphi1D.T @ self.wts1D, self.phi1D.T @ self.wts1D)) @ self.jac(ii, jj) @ np.kron(self.phi1D, self.phi1D)
+        raise NotImplementedError()
     else:           
-        det_jac = self.det_jac(ii, jj)
-        jac = self.jac(ii, jj)
-        B_loc= np.zeros((Nq**2, Nq**2))
-        for j in range(Nq**2):
-            for i in range(Nq**2):
-                for q, w in enumerate(self.quad_wts2D):
-                    x1 = self.quad_pts2D[q][0]
-                    x2 = self.quad_pts2D[q][1]
-                    x1_map, x2_map = self.map_to_original(ii, jj, x1, x2)
-                    B_loc[j,i] += w * self.phi[q,i] * np.dot(transport_speed(x1_map, x2_map, time), jac @ self.dphi_dx[q,j,:]) * det_jac
+        if optimized:
+            det_jac = self.det_jac(ii, jj)
+            jac = self.jac(ii, jj)
+            Q = Nq**2
+            V_q = np.zeros((Q, dim))
+            for q, (xq, yq) in enumerate(self.quad_pts2D):
+                x1_map, x2_map = self.map_to_original(ii, jj, xq, yq)
+                V_q[q, :] = transport_speed(x1_map, x2_map, time)
+            grad_phi_phys = np.einsum('ab, qjb -> qja', jac, self.dphi_dx)
+            v_dot_grad = np.einsum('qa, qja -> qj', V_q, grad_phi_phys)
+            w = np.array(self.quad_wts2D) * det_jac
+            B_loc = np.einsum('q, qi, qj -> ji', w, self.phi, v_dot_grad)
+        else:
+            det_jac = self.det_jac(ii, jj)
+            jac = self.jac(ii, jj)
+            B_loc= np.zeros((Nq**2, Nq**2))
+            for j in range(Nq**2):
+                for i in range(Nq**2):
+                    for q, w in enumerate(self.quad_wts2D):
+                        x1 = self.quad_pts2D[q][0]
+                        x2 = self.quad_pts2D[q][1]
+                        x1_map, x2_map = self.map_to_original(ii, jj, x1, x2)
+                        B_loc[j,i] += w * self.phi[q,i] * np.dot(transport_speed(x1_map, x2_map, time), jac @ self.dphi_dx[q,j,:]) * det_jac
     return B_loc
 
   def local_source(self, ii, jj, t):
@@ -280,117 +331,384 @@ class CellWiseOperator:
 
 # global operator
 class AdvectionOperator:
-  def __init__(self, mesh, dofhandler, cellop, t):
+  def __init__(self, mesh, dofhandler, cellop, t, optimized = True):
         self.mesh = mesh
         self.dofhandler = dofhandler
         self.cellop = cellop
         self.ndofs = dofhandler.ndofs
         self.time = t
-        self.M = np.zeros((self.ndofs, self.ndofs))
-        self.M_inv = np.zeros((self.ndofs, self.ndofs))
-        self.B = np.zeros((self.ndofs, self.ndofs))
-        self.G = np.zeros((self.ndofs, self.ndofs))
-        self.Gbound = np.zeros((self.ndofs, 1))
-        self.source = np.zeros((self.ndofs, 1))
+        
+        self.M = None
+        self.M_inv = None
+        self.B = None
+        self.G = None
+        self.B_minus_G = None
+        if not optimized:
+            self.M = lil_matrix((self.ndofs, self.ndofs))
+            self.M_inv = lil_matrix((self.ndofs, self.ndofs))
+            self.B = lil_matrix((self.ndofs, self.ndofs))
+            self.G = lil_matrix((self.ndofs, self.ndofs))
 
-  def assemble_system(self):
-      # Loop over cells
-      for (ii, jj), dofs in self.dofhandler.iter_cells():
-          # local mass, volume and source
-          M_loc = self.cellop.local_mass(ii, jj)
-          B_loc = self.cellop.local_volume(ii, jj, self.time)
-          M_loc_inv = np.linalg.inv(M_loc)
-          source_loc = self.cellop.local_source(ii, jj, self.time)
+        self.Gbound = np.zeros(self.ndofs)
+        self.source = np.zeros(self.ndofs)
 
-          # global mass, volume and source
-          for li, gi in enumerate(dofs):
-              for lj, gj in enumerate(dofs):
-                  self.M[gi, gj] += M_loc[li, lj]
-                  self.B[gi, gj] += B_loc[li, lj]
-                  self.M_inv[gi, gj] += M_loc_inv[li, lj]
-              self.source[gi] = source_loc[li]
+  def assemble_system(self, optimized = True):
+      if optimized: 
+        # 1. The Dump Trucks (Empty Python lists)
+        M_row, M_col, M_data = [], [], []
+        Minv_row, Minv_col, Minv_data = [], [], []
+        B_row, B_col, B_data = [], [], []
+        G_row, G_col, G_data = [], [], []
+        
+        # Ensure 1D arrays for vectors
+        self.source = np.zeros(self.ndofs)
+        self.Gbound = np.zeros(self.ndofs)
 
-      # Loop over faces
-      for face in self.dofhandler.iter_faces():
-          dofs_cell = face["dofs_cell"]
-          dofs_neighbor = face["dofs_neighbor"]
-          normal = face["normal"]
-          (ii, jj) = face["cell"]
-          face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
-          if flux != "upwind":
-              raise ValueError(f"Flux {flux} is not implemented.")
-          
-          if dofs_neighbor is None: # boundary
-              for lj, gj in enumerate(dofs_cell):
+        # --- LOOP OVER CELLS ---
+        for (ii, jj), dofs in self.dofhandler.iter_cells():
+            # Fetch local matrices
+            M_loc = self.cellop.local_mass(ii, jj)
+            B_loc = self.cellop.local_volume(ii, jj, self.time)
+            M_loc_inv = np.linalg.inv(M_loc)
+            
+            # Assign source vector instantly (DG cells don't share DoFs, so direct assignment is safe)
+            self.source[dofs] = self.cellop.local_source(ii, jj, self.time).flatten()
+
+            # Generate global index maps for this cell
+            grid_i, grid_j = np.meshgrid(dofs, dofs, indexing='ij')
+            
+            # Shovel into dump trucks
+            M_row.extend(grid_i.flatten())
+            M_col.extend(grid_j.flatten())
+            M_data.extend(M_loc.flatten())
+            
+            Minv_row.extend(grid_i.flatten())
+            Minv_col.extend(grid_j.flatten())
+            Minv_data.extend(M_loc_inv.flatten())
+            
+            B_row.extend(grid_i.flatten())
+            B_col.extend(grid_j.flatten())
+            B_data.extend(B_loc.flatten())
+
+        # --- LOOP OVER FACES ---
+        for face in self.dofhandler.iter_faces():
+            dofs_cell = face["dofs_cell"]
+            dofs_neighbor = face["dofs_neighbor"]
+            normal = face["normal"]
+            (ii, jj) = face["cell"]
+            face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
+            
+            if flux != "upwind":
+                raise ValueError(f"Flux {flux} is not implemented.")
+            
+            if dofs_neighbor is None: # Boundary
+                G_loc = np.zeros((len(dofs_cell), len(dofs_cell)))
+                Gbound_loc = np.zeros(len(dofs_cell))
+                
                 for q, qpt in enumerate(self.cellop.qpts):
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
                     normal_speed = transport_speed(x1, x2, self.time) @ normal               
-                    qwt = self.cellop.qwts[q]
+                    weight = normal_speed * self.cellop.qwts[q] * face_jac
                     
                     if normal_speed < 0: # inflow  
-                        self.Gbound[gj] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * boundary_solution(x1, x2, self.time)
+                        u_bnd = boundary_solution(x1, x2, self.time)
+                        # Vectorized boundary addition
+                        Gbound_loc += weight * self.cellop.bd_phi[face["face"]][q, :] * u_bnd
                     else: # outflow
-                        for li, gi in enumerate(dofs_cell):
-                            self.G[gj, gi] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
-                                            
-          else: # interior face             
-              for lj, gj in enumerate(dofs_cell):
+                        # Vectorized outer product replaces the nested li, lj loop!
+                        phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                        phi_i = self.cellop.bd_phi[face["face"]][q, :]
+                        G_loc += weight * np.outer(phi_j, phi_i)
+                        
+                self.Gbound[dofs_cell] += Gbound_loc
+                
+                # Dump G_loc
+                if np.any(G_loc):
+                    grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
+                    G_row.extend(grid_i.flatten())
+                    G_col.extend(grid_j.flatten())
+                    G_data.extend(G_loc.flatten())
+                                                
+            else: # Interior face            
+                G_loc_inflow = np.zeros((len(dofs_cell), len(dofs_neighbor)))
+                G_loc_outflow = np.zeros((len(dofs_cell), len(dofs_cell)))
+                
                 for q, qpt in enumerate(self.cellop.qpts):
                     xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
                     x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
                     normal_speed = transport_speed(x1, x2, self.time) @ normal               
-                    qwt = self.cellop.qwts[q]
+                    weight = normal_speed * self.cellop.qwts[q] * face_jac
 
                     if normal_speed < 0: # inflow  
-                        for li, gi in enumerate(dofs_neighbor):
+                        face_neighbor = self.cellop.opposite(face["face"])
+                        phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                        phi_i = self.cellop.bd_phi[face_neighbor][q, :]
+                        G_loc_inflow += weight * np.outer(phi_j, phi_i)
+                    else: # outflow
+                        phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                        phi_i = self.cellop.bd_phi[face["face"]][q, :]
+                        G_loc_outflow += weight * np.outer(phi_j, phi_i)
+                        
+                # Dump inflow
+                if np.any(G_loc_inflow):
+                    grid_i, grid_j = np.meshgrid(dofs_cell, dofs_neighbor, indexing='ij')
+                    G_row.extend(grid_i.flatten())
+                    G_col.extend(grid_j.flatten())
+                    G_data.extend(G_loc_inflow.flatten())
+                    
+                # Dump outflow
+                if np.any(G_loc_outflow):
+                    grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
+                    G_row.extend(grid_i.flatten())
+                    G_col.extend(grid_j.flatten())
+                    G_data.extend(G_loc_outflow.flatten())
+        
+        # --- COMPILE SPARSE MATRICES ---
+        # coo_matrix inherently sums duplicate (row, col) indices, which handles our flux overlaps perfectly!
+        self.M = coo_matrix((M_data, (M_row, M_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+        self.M_inv = coo_matrix((Minv_data, (Minv_row, Minv_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+        self.B = coo_matrix((B_data, (B_row, B_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+        self.G = coo_matrix((G_data, (G_row, G_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+        self.B_minus_G = self.B - self.G
+      else:
+        # Loop over cells
+        for (ii, jj), dofs in self.dofhandler.iter_cells():
+            # local mass, volume and source
+            M_loc = self.cellop.local_mass(ii, jj)
+            B_loc = self.cellop.local_volume(ii, jj, self.time)
+            M_loc_inv = np.linalg.inv(M_loc)
+            source_loc = self.cellop.local_source(ii, jj, self.time)
+
+            # global mass, volume and source
+            for li, gi in enumerate(dofs):
+                for lj, gj in enumerate(dofs):
+                    self.M[gi, gj] += M_loc[li, lj]
+                    self.B[gi, gj] += B_loc[li, lj]
+                    self.M_inv[gi, gj] += M_loc_inv[li, lj]
+                self.source[gi] = source_loc[li]
+
+        # Loop over faces
+        for face in self.dofhandler.iter_faces():
+            dofs_cell = face["dofs_cell"]
+            dofs_neighbor = face["dofs_neighbor"]
+            normal = face["normal"]
+            (ii, jj) = face["cell"]
+            face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
+            if flux != "upwind":
+                raise ValueError(f"Flux {flux} is not implemented.")
+            
+            if dofs_neighbor is None: # boundary
+                for lj, gj in enumerate(dofs_cell):
+                    for q, qpt in enumerate(self.cellop.qpts):
+                        xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                        x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                        normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                        qwt = self.cellop.qwts[q]
+                        
+                        if normal_speed < 0: # inflow  
+                            self.Gbound[gj] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * boundary_solution(x1, x2, self.time)
+                        else: # outflow
+                            for li, gi in enumerate(dofs_cell):
+                                self.G[gj, gi] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
+                                                
+            else: # interior face             
+                for lj, gj in enumerate(dofs_cell):
+                    for q, qpt in enumerate(self.cellop.qpts):
+                        xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                        x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                        normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                        qwt = self.cellop.qwts[q]
+
+                        if normal_speed < 0: # inflow  
+                            for li, gi in enumerate(dofs_neighbor):
+                                face_neighbor = self.cellop.opposite(face["face"])
+                                self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face_neighbor][q, li]
+                        else: # outflow
+                            for li, gi in enumerate(dofs_cell):
+                                self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
+        
+        self.M = self.M.tocsr()
+        self.M_inv = self.M_inv.tocsr()
+        self.B = self.B.tocsr()
+        self.G = self.G.tocsr()
+        self.B_minus_G = self.B - self.G
+  
+  def set_time(self, t, optimized = True):
+      if optimized: 
+        if self.time == t:
+            return
+        self.time = t
+        
+        self.Gbound = np.zeros(self.ndofs)
+        self.source = np.zeros(self.ndofs)
+        
+        rebuild_matrices = (velocity == "complicated")
+        
+        B_row, B_col, B_data = [], [], []
+        G_row, G_col, G_data = [], [], []
+
+        # --- LOOP OVER CELLS ---
+        for (ii, jj), dofs in self.dofhandler.iter_cells():
+            self.source[dofs] = self.cellop.local_source(ii, jj, self.time).flatten()
+                
+            if rebuild_matrices:
+                B_loc = self.cellop.local_volume(ii, jj, self.time)
+                grid_i, grid_j = np.meshgrid(dofs, dofs, indexing='ij')
+                B_row.extend(grid_i.flatten())
+                B_col.extend(grid_j.flatten())
+                B_data.extend(B_loc.flatten())
+
+        # --- LOOP OVER FACES ---
+        for face in self.dofhandler.iter_faces():
+            dofs_cell = face["dofs_cell"]
+            dofs_neighbor = face["dofs_neighbor"]
+            normal = face["normal"]
+            (ii, jj) = face["cell"]
+            face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
+            
+            if flux != "upwind":
+                raise ValueError(f"Flux {flux} is not implemented.")
+            
+            if dofs_neighbor is None: # Boundary
+                G_loc = np.zeros((len(dofs_cell), len(dofs_cell)))
+                Gbound_loc = np.zeros(len(dofs_cell))
+                
+                for q, qpt in enumerate(self.cellop.qpts):
+                    xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                    x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                    normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                    weight = normal_speed * self.cellop.qwts[q] * face_jac
+                    
+                    if normal_speed < 0: # inflow  
+                        u_bnd = boundary_solution(x1, x2, self.time)
+                        Gbound_loc += weight * self.cellop.bd_phi[face["face"]][q, :] * u_bnd
+                    else: # outflow
+                        if rebuild_matrices:
+                            phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                            phi_i = self.cellop.bd_phi[face["face"]][q, :]
+                            G_loc += weight * np.outer(phi_j, phi_i)
+                            
+                self.Gbound[dofs_cell] += Gbound_loc
+                
+                if rebuild_matrices and np.any(G_loc):
+                    grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
+                    G_row.extend(grid_i.flatten())
+                    G_col.extend(grid_j.flatten())
+                    G_data.extend(G_loc.flatten())
+                                                
+            else: # Interior face            
+                if rebuild_matrices:
+                    G_loc_inflow = np.zeros((len(dofs_cell), len(dofs_neighbor)))
+                    G_loc_outflow = np.zeros((len(dofs_cell), len(dofs_cell)))
+                    
+                    for q, qpt in enumerate(self.cellop.qpts):
+                        xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                        x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                        normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                        weight = normal_speed * self.cellop.qwts[q] * face_jac
+
+                        if normal_speed < 0: # inflow  
                             face_neighbor = self.cellop.opposite(face["face"])
-                            self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face_neighbor][q, li]
-                    else: # outflow
-                        for li, gi in enumerate(dofs_cell):
-                            self.G[gj, gi] += normal_speed * qwt * face_jac *  self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
-      
-  def set_time(self, t):
-      # everything is time-independent except for Gbound, because the boundary condition depends on time
-      if self.time == t:
-          return
-      self.time = t
-      self.Gbound = np.zeros((self.ndofs, 1))
-      self.source = np.zeros((self.ndofs, 1))
-      
-      # Loop over cells
-      for (ii, jj), dofs in self.dofhandler.iter_cells():
-          # local mass, volume and source
-          source_loc = self.cellop.local_source(ii, jj, self.time)
+                            phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                            phi_i = self.cellop.bd_phi[face_neighbor][q, :]
+                            G_loc_inflow += weight * np.outer(phi_j, phi_i)
+                        else: # outflow
+                            phi_j = self.cellop.bd_phi[face["face"]][q, :]
+                            phi_i = self.cellop.bd_phi[face["face"]][q, :]
+                            G_loc_outflow += weight * np.outer(phi_j, phi_i)
+                            
+                    if np.any(G_loc_inflow):
+                        grid_i, grid_j = np.meshgrid(dofs_cell, dofs_neighbor, indexing='ij')
+                        G_row.extend(grid_i.flatten())
+                        G_col.extend(grid_j.flatten())
+                        G_data.extend(G_loc_inflow.flatten())
+                        
+                    if np.any(G_loc_outflow):
+                        grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
+                        G_row.extend(grid_i.flatten())
+                        G_col.extend(grid_j.flatten())
+                        G_data.extend(G_loc_outflow.flatten())
+        
+        if rebuild_matrices:
+            self.B = coo_matrix((B_data, (B_row, B_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+            self.G = coo_matrix((G_data, (G_row, G_col)), shape=(self.ndofs, self.ndofs)).tocsr()
+            self.B_minus_G = self.B - self.G
+      else:
+        if self.time == t:
+            return
+        self.time = t
+        
+        self.Gbound = np.zeros(self.ndofs)
+        self.source = np.zeros(self.ndofs)
+        
+        rebuild_matrices = (velocity == "complicated")
+        
+        if rebuild_matrices:
+            self.B = lil_matrix((self.ndofs, self.ndofs))
+            self.G = lil_matrix((self.ndofs, self.ndofs))
 
-          # global mass, volume and source
-          for li, gi in enumerate(dofs):
-            self.source[gi] = source_loc[li]
-              
-      # Loop over faces
-      for face in self.dofhandler.iter_faces():
-          dofs_cell = face["dofs_cell"]
-          dofs_neighbor = face["dofs_neighbor"]
-          normal = face["normal"]
-          (ii, jj) = face["cell"]
-          face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
-          if flux != "upwind":
-              raise ValueError(f"Flux {flux} is not implemented.")
-          
-          if dofs_neighbor is None: # boundary
-              for lj, gj in enumerate(dofs_cell):
-                for q, qpt in enumerate(self.cellop.qpts):
-                    xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
-                    xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
-                    x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
-                    normal_speed = transport_speed(x1, x2, self.time) @ normal 
-                    qwt = self.cellop.qwts[q]
-                    
-                    if normal_speed < 0: # inflow  
-                        self.Gbound[gj] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * boundary_solution(x1, x2, self.time)
- 
-  def apply(self, src):
-      return self.M_inv @ ((self.B - self.G) @ src - self.Gbound + self.source)
+        for (ii, jj), dofs in self.dofhandler.iter_cells():
+            source_loc = self.cellop.local_source(ii, jj, self.time)
+            for li, gi in enumerate(dofs):
+                self.source[gi] = source_loc[li]
+                
+            # Only rebuild the volume matrix if velocity is changing
+            if rebuild_matrices:
+                B_loc = self.cellop.local_volume(ii, jj, self.time)
+                for li, gi in enumerate(dofs):
+                    for lj, gj in enumerate(dofs):
+                        self.B[gi, gj] += B_loc[li, lj]
+
+        for face in self.dofhandler.iter_faces():
+            dofs_cell = face["dofs_cell"]
+            dofs_neighbor = face["dofs_neighbor"]
+            normal = face["normal"]
+            (ii, jj) = face["cell"]
+            face_jac = self.cellop.det_jac_face(ii, jj, face["face"])
+            
+            if flux != "upwind":
+                raise ValueError(f"Flux {flux} is not implemented.")
+            
+            if dofs_neighbor is None: # Physical Boundary
+                for lj, gj in enumerate(dofs_cell):
+                    for q, qpt in enumerate(self.cellop.qpts):
+                        xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                        x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                        normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                        qwt = self.cellop.qwts[q]
+                        
+                        if normal_speed < 0: # inflow  
+                            self.Gbound[gj] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * boundary_solution(x1, x2, self.time)
+                        else:
+                            if rebuild_matrices:
+                                for li, gi in enumerate(dofs_cell):
+                                    self.G[gj, gi] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
+                                                
+            else: # Interior face            
+                if rebuild_matrices:
+                    for lj, gj in enumerate(dofs_cell):
+                        for q, qpt in enumerate(self.cellop.qpts):
+                            xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
+                            x1, x2 = self.cellop.map_to_original(ii, jj, xq, yq)
+                            normal_speed = transport_speed(x1, x2, self.time) @ normal               
+                            qwt = self.cellop.qwts[q]
+
+                            if normal_speed < 0: # inflow  
+                                for li, gi in enumerate(dofs_neighbor):
+                                    face_neighbor = self.cellop.opposite(face["face"])
+                                    self.G[gj, gi] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face_neighbor][q, li]
+                            else: # outflow
+                                for li, gi in enumerate(dofs_cell):
+                                    self.G[gj, gi] += normal_speed * qwt * face_jac * self.cellop.bd_phi[face["face"]][q, lj] * self.cellop.bd_phi[face["face"]][q, li]
+        
+        if rebuild_matrices:
+            self.B = self.B.tocsr()
+            self.G = self.G.tocsr()
+            self.B_minus_G = self.B - self.G
+            
+  def apply(self, src, optimized = True):
+    return self.M_inv @ (self.B_minus_G @ src - self.Gbound + self.source)
   
   def apply_volume(self, src):
       return self.B @ src
@@ -401,8 +719,8 @@ class AdvectionOperator:
   def add_boundary(self):
       return self.Gbound
   
-  def interpolate(self, t):
-      F = np.zeros((self.ndofs, 1))
+  def interpolate(self, t, optimized = True):
+      F = np.zeros(self.ndofs)
       for (i, j), dofs in self.dofhandler.iter_cells():
           # local F
           F_loc = self.cellop.local_f(i, j, t)
@@ -411,10 +729,13 @@ class AdvectionOperator:
           # global mass and volume
           for li, gi in enumerate(dofs):
             F[gi] += F_loc[li]
-      return self.M_inv @ F
+      U = self.M_inv @ F
+      if optimized:
+        return U.flatten()
+      else:
+        return U
   
   def evaluate_function(self, U, x, y):
-    
     for (i, j), dofs in self.dofhandler.iter_cells():
         x0, x1, y0, y1 = self.mesh.cell_bounds(i, j)
         if x0 <= x <= x1 and y0 <= y <= y1:
@@ -423,36 +744,51 @@ class AdvectionOperator:
 
     raise ValueError("point outside domain")
   
-  def build_operator(self, factor):
+  def build_operator(self, factor, optimized = True):
     n = self.ndofs
+    if optimized:
+      def matvec(v_flat):
+          v = v_flat.reshape(n) # keep it 1D
+          w = v - factor * (self.M_inv @ (self.B_minus_G @ v))
+          return w
+      
+      def rmatvec(v_flat):
+          v = v_flat.reshape(n)
+          w = v - factor * (self.B_minus_G.T @ (self.M_inv.T @ v))
+          return w
+          
+      return LinearOperator(shape=(n, n), matvec=matvec, rmatvec=rmatvec, dtype=float)
+    else:
+        def matvec(v_flat):
+            v = v_flat.reshape(n, 1)
+            w = v - factor * (
+                self.M_inv @ ((self.B - self.G) @ v)
+            )
+            return w.reshape(n)
+        
+        def rmatvec(v_flat):
+            v = v_flat.reshape(n, 1)
+            w = v - factor * (
+                (self.B.T - self.G.T) @ self.M_inv.T @ v
+            )
+            return w.reshape(n)
 
-    def matvec(v_flat):
-        v = v_flat.reshape(n, 1)
-        w = v - factor * (
-            self.M_inv @ ((self.B - self.G) @ v)
+        linear_operator = LinearOperator(
+            shape=(n, n),
+            matvec=matvec,
+            rmatvec=rmatvec,
+            dtype=float
         )
-        return w.reshape(n)
-    
-    def rmatvec(v_flat):
-        v = v_flat.reshape(n, 1)
-        w = v - factor * (
-            (self.B.T - self.G.T) @ self.M_inv.T @ v
-        )
-        return w.reshape(n)
-
-    linear_operator = LinearOperator(
-        shape=(n, n),
-        matvec=matvec,
-        rmatvec=rmatvec,
-        dtype=float
-    )
-    return linear_operator
+        return linear_operator
   
   def build_local_operator(self, dofs, factor):
     dofs = np.array(dofs)
-    Mloc = self.M_inv[np.ix_(dofs, dofs)]
-    Bloc = self.B    [np.ix_(dofs, dofs)]
-    Gloc = self.G    [np.ix_(dofs, dofs)]
+    Mloc = self.M_inv[np.ix_(dofs, dofs)].toarray()
+    Bloc = self.B    [np.ix_(dofs, dofs)].toarray()
+    Gloc = self.G    [np.ix_(dofs, dofs)].toarray() 
+    # Mloc = self.M_inv[np.ix_(dofs, dofs)]
+    # Bloc = self.B    [np.ix_(dofs, dofs)]
+    # Gloc = self.G    [np.ix_(dofs, dofs)]
     
     # Local operators
     def loc_matvec(v_loc):
@@ -661,15 +997,15 @@ def inspect_G_on_constant(op):
     print("Global ||G e|| =", norm(ge))
 
     # print by cell
-    for (ii, jj), dofs in op.dofhandler.iter_cells():
-        cell_vals = ge[dofs].ravel()
-        print(f"cell ({ii},{jj})  G e =", cell_vals)
+    # for (ii, jj), dofs in op.dofhandler.iter_cells():
+    #     cell_vals = ge[dofs].ravel()
+    #     print(f"cell ({ii},{jj})  G e =", cell_vals)
         
-    print(f"Global Gbound: {op.Gbound}")
+    # print(f"Global Gbound: {op.Gbound}")
 
 # test 2: time derivative for 2D sine
 def test_time_derivative():
-    t = 1.0
+    t = 0.25
     mesh = StructuredMesh2D(Nx, Ny, periodic)
     dof_handler = DoFHandler2D(mesh, Nq**2)
     cell_operator = CellWiseOperator(mesh)
@@ -690,9 +1026,11 @@ def test_time_derivative():
 def exact_ut(x, y, t):
     if velocity == "rotating":
         return -np.sin(np.pi * x) * np.sin(np.pi * y) * np.sin(t)
-    else:
+    elif velocity == "constant":
         return -(1.0 * (2*np.pi * np.cos(2*np.pi*x) * np.sin(2*np.pi*y))
                  + 1.0 * (2*np.pi * np.sin(2*np.pi*x) * np.cos(2*np.pi*y)))
+    else:
+        raise NotImplementedError()
 
 def project_exact_ut(operator, t):
     F = np.zeros((operator.ndofs, 1))
@@ -1280,7 +1618,7 @@ def run_improved_precon():
             
     step_sizes = [0.1, 0.05, 0.01, 0.005]
     ranks = [2, 4, 8, 16]
-    types = ["pazner1", "pazner2", "diagonal", "pazner1_woodbury", "pazner2_woodbury", "diagonal_woodbury"]
+    types = ["pazner2", "pazner2_woodbury"]
     for type in types:
         for k in ranks:
             if type in ["pazner1", "pazner2", "diagonal"] and k > 2:
@@ -1295,7 +1633,7 @@ def run_improved_precon():
             print(f"Running experiment: {type}, k={k}.")
             for rk in [1, 2, 3, 4]:
                 for h in step_sizes:
-                    # print(f"Running experiment: {type}, rk={rk}, h={h}, k={k}.")
+                    print(f"Running experiment: {type}, rk={rk}, h={h}, k={k}.")
                     start = time.perf_counter()
                     t = start_time
                     operator.set_time(t)
@@ -1337,20 +1675,98 @@ def run_improved_precon():
                         
                     avg_iterations_global /= iter
                     end = time.perf_counter()
-                    err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-                    errors[rk].append(abs(err))
+                    # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+                    # errors[rk].append(abs(err))
                     runtime[rk].append(end - start)
                     iterations[rk].append(avg_iterations_global)
                     print(avg_iterations_global)
     
-            plot_errors(step_sizes, errors, initial_error, name)
-            print(errors)
+            # plot_errors(step_sizes, errors, initial_error, name)
+            # print(errors)
             plot_runtimes(step_sizes, runtime, name_time)
             print(runtime)
             plot_iterations(step_sizes, iterations, name_iterations)
             print(iterations)
 
-# make_snapshots()
+def run_one():
+    t = start_time
+    mesh = StructuredMesh2D(Nx, Ny, periodic)
+    dof_handler = DoFHandler2D(mesh, Nq**2)
+    cell_operator = CellWiseOperator(mesh)
+    operator = AdvectionOperator(mesh, dof_handler, cell_operator, t)
+    operator.assemble_system()
+    U = operator.interpolate(t)
+    
+    initial_error = average(lambda x, y: operator.evaluate_function(U, x, y) - initial_solution(x, y))
+    print(f"Average distance: {initial_error}")
+    # print(f"Printing solution at t = {t}.")
+    # show(lambda x, y: operator.evaluate_function(U, x, y), t, f"-{velocity}")
+            
+    h = 0.005
+    k = 0
+    type = "pazner2"        
+    print(f"Running experiment: {type}, k={k}.")
+    start = time.perf_counter()
+    t = start_time
+    
+    rk = 4
+    rk_A, rk_b, rk_c = rk_scheme(rk=rk, explicit=False)
+    rk_stepper = RungeKuttaMethod(rk_A, rk_b, rk_c)
+    def F(t, A):
+        operator.set_time(t)
+        return operator.apply(A)
+    
+    factor = 0
+    if rk_stepper.A[0, 0] != 0:
+        factor = rk_stepper.A[0, 0]
+    elif rk > 1:
+        factor = rk_stepper.A[1, 1]
+        
+    gmres_operator = operator.build_operator(h * factor)
+    preconditioner = LinearOperator(shape=(operator.ndofs, operator.ndofs), matvec=lambda v: v,dtype=float)
+    if type == "pazner1":
+        preconditioner = operator.build_preconditioner(h * factor, "pazner", r=1, k=k)
+    elif type == "pazner2":
+        preconditioner = operator.build_preconditioner(h * factor, "pazner", r=2, k=k)
+    elif type == "pazner1_woodbury":
+        preconditioner = operator.build_preconditioner(h * factor, "pazner_woodbury", r=1, k=k)
+    elif type == "pazner2_woodbury":
+        preconditioner = operator.build_preconditioner(h * factor, "pazner_woodbury", r=2, k=k)
+    else:
+        preconditioner = operator.build_preconditioner(h * factor, type, r=None, k=k)
+    
+    iter = 0 
+    avg_iterations_global = 0
+    snaptimes = [0.1 * k * final_time for k in range(11)]
+    while np.abs(t - final_time) > h / 2:
+        U, avg_iterations = rk_stepper.step(operator, F, A0=U , h=h, t=t, gmres_operator=gmres_operator, preconditioner=preconditioner)
+        t += h
+        avg_iterations_global += avg_iterations
+        iter += 1
+        err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+        print(f"Average error at time t={t}: {err}.")
+        print(f"Time = {t}")
+        for snaptime in snaptimes:
+            if np.abs(t - snaptime) < h / 2:
+                print(f"Printing solution at t = {t}.")
+                show(lambda x, y: operator.evaluate_function(U, x, y), t, f"-{velocity}") 
+        
+        
+    avg_iterations_global /= iter
+    end = time.perf_counter()
+    err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+    print(avg_iterations_global)
+    print(f"Average error at time t={t}: {err}.")
+    print(f"Runtime: {end - start} s")
+    
+# test setup
+# test_constant_solution()
+# test_time_derivative()
+
+# run experiments
+run_one()
 # run_explicit()
+# run_implicit()
 # run_improved_precon()
-run_implicit()
+
+# Furkan.Akin@

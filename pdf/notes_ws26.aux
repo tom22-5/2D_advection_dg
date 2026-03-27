@@ -38,8 +38,6 @@
 \newlabel{tab:pazner_comparison}{{1}{4}{Average number of GMRES iterations for RK methods using Pazner's preconditioner with rank $r=1$ versus rank $r=2$ with respect to step sizes $h$ and stage numbers.\relax }{table.caption.1}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Average number of GMRES iterations for RK methods using the Diagonal preconditioner compared to a plain implicit solver without preconditioning. Notably, for smaller step sizes ($h \le 0.01$), the diagonal preconditioner degrades the spectrum and increases iteration counts compared to the un-preconditioned system. Values of 150.00 indicate GMRES stalled at the maximum iteration limit.\relax }}{4}{table.caption.2}\protected@file@percent }
 \newlabel{tab:diagonal_vs_none}{{2}{4}{Average number of GMRES iterations for RK methods using the Diagonal preconditioner compared to a plain implicit solver without preconditioning. Notably, for smaller step sizes ($h \le 0.01$), the diagonal preconditioner degrades the spectrum and increases iteration counts compared to the un-preconditioned system. Values of 150.00 indicate GMRES stalled at the maximum iteration limit.\relax }{table.caption.2}{}}
-\bibstyle{alpha}
-\bibdata{references}
 \@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Average number of GMRES iterations for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k \in \{2, 4, 8, 16\}$. Notice the convergence to the exact $r=2$ iteration baseline at $k=16$.\relax }}{5}{table.caption.3}\protected@file@percent }
 \newlabel{tab:woodbury_k_comparison}{{3}{5}{Average number of GMRES iterations for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k \in \{2, 4, 8, 16\}$. Notice the convergence to the exact $r=2$ iteration baseline at $k=16$.\relax }{table.caption.3}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Total runtime (in seconds) for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k$. Notice that increasing the rank to $k=16$ yields the fastest overall runtimes due to the drastic reduction in GMRES iterations.\relax }}{5}{table.caption.4}\protected@file@percent }
@@ -48,8 +46,14 @@
 \newlabel{tab:pazner_runtime_comparison}{{5}{5}{Total runtime (in seconds) for RK methods using Pazner's base preconditioner with rank $r=1$ versus rank $r=2$.\relax }{table.caption.5}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Average number of GMRES iterations for RK methods using a Diagonal base preconditioner augmented with a randomized Woodbury update. Notice that at $k=16$, the randomized update completely maps the missing cross-derivative physics, rescuing the solver from stagnation and achieving optimal iteration counts.\relax }}{5}{table.caption.6}\protected@file@percent }
 \newlabel{tab:diagonal_woodbury_comparison}{{6}{5}{Average number of GMRES iterations for RK methods using a Diagonal base preconditioner augmented with a randomized Woodbury update. Notice that at $k=16$, the randomized update completely maps the missing cross-derivative physics, rescuing the solver from stagnation and achieving optimal iteration counts.\relax }{table.caption.6}{}}
+\bibstyle{alpha}
+\bibdata{references}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Average GMRES iterations per RK step for varying polynomial degrees $p$. The values indicate the convergence behavior of the randomized Woodbury update across different ranks $k$ and time steps.\relax }}{6}{table.caption.7}\protected@file@percent }
+\newlabel{tab:stacked_woodbury_iterations}{{7}{6}{Average GMRES iterations per RK step for varying polynomial degrees $p$. The values indicate the convergence behavior of the randomized Woodbury update across different ranks $k$ and time steps.\relax }{table.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Total runtime (in seconds) per RK step for varying polynomial degrees $p$. The values illustrate the computational efficiency of randomized Woodbury updates as local cell matrix dimensionality increases.\relax }}{6}{table.caption.8}\protected@file@percent }
+\newlabel{tab:stacked_woodbury_runtimes}{{8}{6}{Total runtime (in seconds) per RK step for varying polynomial degrees $p$. The values illustrate the computational efficiency of randomized Woodbury updates as local cell matrix dimensionality increases.\relax }{table.caption.8}{}}
 \bibcite{diosady2017tensor}{{DM17}{}{{}}{{}}}
 \bibcite{kronbichler2019fast}{{KK19}{}{{}}{{}}}
 \bibcite{pazner2018approximate}{{PP18}{}{{}}{{}}}
 \providecommand\NAT@force@numbers{}\NAT@force@numbers
-\gdef \@abspage@last{8}
+\gdef \@abspage@last{9}

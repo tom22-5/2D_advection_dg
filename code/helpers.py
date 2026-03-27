@@ -75,7 +75,6 @@ def lagrange_basis(x_nodes, i, x):
             val *= (x - xj) / (xi - xj)
     return val
 
-
 def lagrange_basis_derivative(x_nodes, i, x):
     """Return dL_i(x)/dx for basis index i at point x"""
     xi = x_nodes[i]
