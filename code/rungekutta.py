@@ -268,7 +268,7 @@ class RungeKuttaMethod:
                         # print("GMRES iterations without preconditioner:", iter_count[0])
 
                     avg_iterations += iter_count[0]
-                    K_stages[j] = operator.M_inv @ ((operator.B_minus_G) @ Yi - operator.Gbound + operator.source)
+                    K_stages[j] = operator.M_inv @ ((operator.B_minus_G) @ Yi - operator.Gbound)
 
             # Final combination: sum_j b[j] * K_stages[j]
             final_sum = np.zeros_like(A0)

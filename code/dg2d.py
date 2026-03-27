@@ -21,8 +21,8 @@ flux_alpha = 1.0
 start_time = 0
 final_time = 1.0
 flux = "upwind" # upwind
-velocity = "rotating" # constant, rotating, complicated
-periodic = False # periodic, manufactured
+velocity = "spiral" # constant, rotating, spiral
+periodic = True # periodic, Dirichlet
 
 # Hyperparameters grid
 Nx = 16
@@ -43,8 +43,13 @@ print(f"Initializing DG solver with Nx={Nx}, Ny={Ny}, fe_degree={fe_degree}, bas
 # exact solution at time = 0
 def initial_solution(x1, x2):
     if velocity == "rotating":
-        return exact_solution(x1, x2, 0)
-    elif velocity == "complicated":
+        # A smooth Gaussian hump centered at (0.25, 0.25)
+        xc = 0.25
+        yc = 0.25
+        sigma = 0.08
+        return np.exp(-((x1 - xc)**2 + (x2 - yc)**2) / (2 * sigma**2))    
+    elif velocity == "spiral":
+        # two Gaussian humps centered at (0.5, 0.75) and (0.5, 0.25)
         return np.exp(-400. * ((x1 - 0.5) * (x1 - 0.5) + (x2 - 0.75) * (x2 - 0.75))) + np.exp(-100. * ((x1 - 0.5) * (x1 - 0.5) + (x2 - 0.25) * (x2 - 0.25)))
     elif velocity == "constant":
         return np.sin(2.0 * np.pi * x1) * np.sin(2.0 * np.pi * x2)
@@ -54,9 +59,11 @@ def initial_solution(x1, x2):
 # exact analytical solution at any time
 def exact_solution(x1, x2, t):
     if velocity == "rotating":
-        return np.sin(np.pi * x1) * np.sin(np.pi * x2) * np.cos(t)
-    elif velocity == "complicated":
-        if np.abs(t) < 10e-08:
+        x_rot = x1 * np.cos(t) + x2 * np.sin(t)
+        y_rot = -x1 * np.sin(t) + x2 * np.cos(t)
+        return initial_solution(x_rot, y_rot)    
+    elif velocity == "spiral":
+        if np.abs(t) < 10e-08 or np.abs(t - final_time) < 10e-08:
             return initial_solution(x1, x2)
         else:
             raise NotImplementedError()
@@ -76,11 +83,11 @@ def boundary_solution(x1, x2, t):
     else:
         raise NotImplementedError()
   
-# constant tranport speed in spacetime
+# tranport speed in spacetime
 def transport_speed(x1, x2, time = 0.0):
     if velocity == "rotating":
-        return np.array([-x2, x1]) # rotating velocity vortex
-    elif velocity == "complicated":
+        return np.array([-x2, x1])
+    elif velocity == "spiral":
         factor = np.cos(np.pi * time / final_time) * 2.0
         
         pi_x1 = np.pi * x1
@@ -105,7 +112,7 @@ def transport_speed(x1, x2, time = 0.0):
         
         return np.array([u, v])
     elif velocity == "constant":
-        return np.array([1.0, 1.0]) # constant advection
+        return np.array([1.0, 1.0])
     else:
         raise NotImplementedError()
         
@@ -286,26 +293,6 @@ class CellWiseOperator:
                         B_loc[j,i] += w * self.phi[q,i] * np.dot(transport_speed(x1_map, x2_map, time), jac @ self.dphi_dx[q,j,:]) * det_jac
     return B_loc
 
-  def local_source(self, ii, jj, t):
-    det_jac = self.det_jac(ii, jj)
-    source_loc = np.zeros((Nq ** 2, 1))
-    for i in range(Nq ** 2):
-        for q, w in enumerate(self.quad_wts2D):
-            x1 = self.quad_pts2D[q][0]
-            x2 = self.quad_pts2D[q][1]
-            x1_map, x2_map = self.map_to_original(ii, jj, x1, x2)
-            
-            if velocity == "rotating":
-                term1 = -np.sin(np.pi * x1_map) * np.sin(np.pi * x2_map) * np.sin(t)
-                term2 = x1_map * np.sin(np.pi * x1_map) * np.cos(np.pi * x2_map)
-                term3 = -x2_map * np.cos(np.pi * x1_map) * np.sin(np.pi * x2_map)
-                src_val = term1 + np.pi * np.cos(t) * (term2 + term3)
-            else:
-                src_val = 0.0
-                
-            source_loc[i] += w * self.phi[q,i] * src_val * det_jac
-    return source_loc
-
   def local_f(self, ii, jj, t):
       # computes the right-hand side of the initial system
       det_jac = self.det_jac(ii, jj)
@@ -350,34 +337,24 @@ class AdvectionOperator:
             self.G = lil_matrix((self.ndofs, self.ndofs))
 
         self.Gbound = np.zeros(self.ndofs)
-        self.source = np.zeros(self.ndofs)
 
   def assemble_system(self, optimized = True):
       if optimized: 
-        # 1. The Dump Trucks (Empty Python lists)
         M_row, M_col, M_data = [], [], []
         Minv_row, Minv_col, Minv_data = [], [], []
         B_row, B_col, B_data = [], [], []
         G_row, G_col, G_data = [], [], []
         
-        # Ensure 1D arrays for vectors
-        self.source = np.zeros(self.ndofs)
         self.Gbound = np.zeros(self.ndofs)
 
         # --- LOOP OVER CELLS ---
         for (ii, jj), dofs in self.dofhandler.iter_cells():
-            # Fetch local matrices
             M_loc = self.cellop.local_mass(ii, jj)
             B_loc = self.cellop.local_volume(ii, jj, self.time)
             M_loc_inv = np.linalg.inv(M_loc)
-            
-            # Assign source vector instantly (DG cells don't share DoFs, so direct assignment is safe)
-            self.source[dofs] = self.cellop.local_source(ii, jj, self.time).flatten()
 
-            # Generate global index maps for this cell
             grid_i, grid_j = np.meshgrid(dofs, dofs, indexing='ij')
             
-            # Shovel into dump trucks
             M_row.extend(grid_i.flatten())
             M_col.extend(grid_j.flatten())
             M_data.extend(M_loc.flatten())
@@ -413,17 +390,14 @@ class AdvectionOperator:
                     
                     if normal_speed < 0: # inflow  
                         u_bnd = boundary_solution(x1, x2, self.time)
-                        # Vectorized boundary addition
                         Gbound_loc += weight * self.cellop.bd_phi[face["face"]][q, :] * u_bnd
                     else: # outflow
-                        # Vectorized outer product replaces the nested li, lj loop!
                         phi_j = self.cellop.bd_phi[face["face"]][q, :]
                         phi_i = self.cellop.bd_phi[face["face"]][q, :]
                         G_loc += weight * np.outer(phi_j, phi_i)
                         
                 self.Gbound[dofs_cell] += Gbound_loc
                 
-                # Dump G_loc
                 if np.any(G_loc):
                     grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
                     G_row.extend(grid_i.flatten())
@@ -450,14 +424,12 @@ class AdvectionOperator:
                         phi_i = self.cellop.bd_phi[face["face"]][q, :]
                         G_loc_outflow += weight * np.outer(phi_j, phi_i)
                         
-                # Dump inflow
                 if np.any(G_loc_inflow):
                     grid_i, grid_j = np.meshgrid(dofs_cell, dofs_neighbor, indexing='ij')
                     G_row.extend(grid_i.flatten())
                     G_col.extend(grid_j.flatten())
                     G_data.extend(G_loc_inflow.flatten())
                     
-                # Dump outflow
                 if np.any(G_loc_outflow):
                     grid_i, grid_j = np.meshgrid(dofs_cell, dofs_cell, indexing='ij')
                     G_row.extend(grid_i.flatten())
@@ -465,7 +437,6 @@ class AdvectionOperator:
                     G_data.extend(G_loc_outflow.flatten())
         
         # --- COMPILE SPARSE MATRICES ---
-        # coo_matrix inherently sums duplicate (row, col) indices, which handles our flux overlaps perfectly!
         self.M = coo_matrix((M_data, (M_row, M_col)), shape=(self.ndofs, self.ndofs)).tocsr()
         self.M_inv = coo_matrix((Minv_data, (Minv_row, Minv_col)), shape=(self.ndofs, self.ndofs)).tocsr()
         self.B = coo_matrix((B_data, (B_row, B_col)), shape=(self.ndofs, self.ndofs)).tocsr()
@@ -474,19 +445,17 @@ class AdvectionOperator:
       else:
         # Loop over cells
         for (ii, jj), dofs in self.dofhandler.iter_cells():
-            # local mass, volume and source
+            # local mass, volume
             M_loc = self.cellop.local_mass(ii, jj)
             B_loc = self.cellop.local_volume(ii, jj, self.time)
             M_loc_inv = np.linalg.inv(M_loc)
-            source_loc = self.cellop.local_source(ii, jj, self.time)
 
-            # global mass, volume and source
+            # global mass, volume
             for li, gi in enumerate(dofs):
                 for lj, gj in enumerate(dofs):
                     self.M[gi, gj] += M_loc[li, lj]
                     self.B[gi, gj] += B_loc[li, lj]
                     self.M_inv[gi, gj] += M_loc_inv[li, lj]
-                self.source[gi] = source_loc[li]
 
         # Loop over faces
         for face in self.dofhandler.iter_faces():
@@ -541,16 +510,14 @@ class AdvectionOperator:
         self.time = t
         
         self.Gbound = np.zeros(self.ndofs)
-        self.source = np.zeros(self.ndofs)
         
-        rebuild_matrices = (velocity == "complicated")
+        rebuild_matrices = (velocity == "spiral")
         
         B_row, B_col, B_data = [], [], []
         G_row, G_col, G_data = [], [], []
 
         # --- LOOP OVER CELLS ---
         for (ii, jj), dofs in self.dofhandler.iter_cells():
-            self.source[dofs] = self.cellop.local_source(ii, jj, self.time).flatten()
                 
             if rebuild_matrices:
                 B_loc = self.cellop.local_volume(ii, jj, self.time)
@@ -640,19 +607,14 @@ class AdvectionOperator:
         self.time = t
         
         self.Gbound = np.zeros(self.ndofs)
-        self.source = np.zeros(self.ndofs)
         
-        rebuild_matrices = (velocity == "complicated")
+        rebuild_matrices = (velocity == "spiral")
         
         if rebuild_matrices:
             self.B = lil_matrix((self.ndofs, self.ndofs))
             self.G = lil_matrix((self.ndofs, self.ndofs))
 
-        for (ii, jj), dofs in self.dofhandler.iter_cells():
-            source_loc = self.cellop.local_source(ii, jj, self.time)
-            for li, gi in enumerate(dofs):
-                self.source[gi] = source_loc[li]
-                
+        for (ii, jj), dofs in self.dofhandler.iter_cells():                
             # Only rebuild the volume matrix if velocity is changing
             if rebuild_matrices:
                 B_loc = self.cellop.local_volume(ii, jj, self.time)
@@ -670,7 +632,7 @@ class AdvectionOperator:
             if flux != "upwind":
                 raise ValueError(f"Flux {flux} is not implemented.")
             
-            if dofs_neighbor is None: # Physical Boundary
+            if dofs_neighbor is None: # Boundary
                 for lj, gj in enumerate(dofs_cell):
                     for q, qpt in enumerate(self.cellop.qpts):
                         xq, yq = self.cellop.get_boundary_point(qpt, face["face"])
@@ -707,8 +669,8 @@ class AdvectionOperator:
             self.G = self.G.tocsr()
             self.B_minus_G = self.B - self.G
             
-  def apply(self, src, optimized = True):
-    return self.M_inv @ (self.B_minus_G @ src - self.Gbound + self.source)
+  def apply(self, src):
+    return self.M_inv @ (self.B_minus_G @ src - self.Gbound)
   
   def apply_volume(self, src):
       return self.B @ src
@@ -1004,6 +966,7 @@ def inspect_G_on_constant(op):
     # print(f"Global Gbound: {op.Gbound}")
 
 # test 2: time derivative for 2D sine
+# only works if exact_ut (exact time derivative) is hard coded
 def test_time_derivative():
     t = 0.25
     mesh = StructuredMesh2D(Nx, Ny, periodic)
@@ -1702,7 +1665,7 @@ def run_one():
     # print(f"Printing solution at t = {t}.")
     # show(lambda x, y: operator.evaluate_function(U, x, y), t, f"-{velocity}")
             
-    h = 0.005
+    h = 0.01
     k = 0
     type = "pazner2"        
     print(f"Running experiment: {type}, k={k}.")
@@ -1743,8 +1706,8 @@ def run_one():
         t += h
         avg_iterations_global += avg_iterations
         iter += 1
-        err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
-        print(f"Average error at time t={t}: {err}.")
+        # err = average(lambda x, y: operator.evaluate_function(U, x, y) - exact_solution(x, y, t))
+        # print(f"Average error at time t={t}: {err}.")
         print(f"Time = {t}")
         for snaptime in snaptimes:
             if np.abs(t - snaptime) < h / 2:
