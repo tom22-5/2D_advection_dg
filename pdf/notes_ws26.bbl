@@ -1,4 +1,21 @@
-\begin{thebibliography}{DM17}
+\begin{thebibliography}{AMT10}
+
+\bibitem[AGH01]{akgun2001fast}
+Mehmet~A Akg{\"u}n, John~H Garcelon, and Raphael~T Haftka.
+\newblock Fast exact linear and non-linear structural reanalysis and the
+  sherman--morrison--woodbury formulas.
+\newblock {\em International Journal for Numerical Methods in Engineering},
+  50(7):1587--1606, 2001.
+
+\bibitem[AMT10]{avron2010blendenpik}
+Haim Avron, Petar Maymounkov, and Sivan Toledo.
+\newblock Blendenpik: Supercharging lapack's least-squares solver.
+\newblock {\em SIAM Journal on Scientific Computing}, 32(3):1217--1236, 2010.
+
+\bibitem[BG22]{balabanov2022randomized}
+Oleg Balabanov and Laura Grigori.
+\newblock Randomized gram--schmidt process with application to gmres.
+\newblock {\em SIAM Journal on Scientific Computing}, 44(3):A1450--A1474, 2022.
 
 \bibitem[DM17]{diosady2017tensor}
 Laslo~T Diosady and Scott~M Murman.
@@ -13,10 +30,23 @@ Martin Kronbichler and Katharina Kormann.
 \newblock {\em ACM Transactions on Mathematical Software (TOMS)}, 45(3):1--40,
   2019.
 
+\bibitem[NT24]{nakatsukasa2024fast}
+Yuji Nakatsukasa and Joel~A Tropp.
+\newblock Fast and accurate randomized algorithms for linear systems and
+  eigenvalue problems.
+\newblock {\em SIAM journal on matrix analysis and applications},
+  45(2):1183--1214, 2024.
+
 \bibitem[PP18]{pazner2018approximate}
 Will Pazner and Per-Olof Persson.
 \newblock Approximate tensor-product preconditioners for very high order
   discontinuous galerkin methods.
 \newblock {\em Journal of computational physics}, 354:344--369, 2018.
+
+\bibitem[TW23]{T23}
+Joel~A. Tropp and Robert~J. Webber.
+\newblock Randomized algorithms for low-rank matrix approximation: Design,
+  analysis, and applications.
+\newblock {\em arXiv preprint arXiv:2306.12418}, 2023.
 
 \end{thebibliography}

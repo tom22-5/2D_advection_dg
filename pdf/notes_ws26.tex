@@ -33,101 +33,129 @@
 
 \begin{document}
 
-\title{Randomised Methods For Tensor-Product Preconditioners In Very High Order Discontinuous Galerkin Discretizations}
+\title{Randomised Methods For Tensor-Product Preconditioners In Very High Order Discontinuous Galerkin Discretisations}
 \author{Tom Feldhausen}
 \date{\today}
 
 \maketitle
 
 \begin{abstract}
-Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free tensor-product preconditioners such as the tensor-product preconditioners of \cite{diosady2017tensor} and \cite{pazner2018approximate}. In the first part of the project, we implemented a matrix-based DG method for two-dimensional linear advection with upwind flux and verified the efficiency of Pazner's preconditioner. Next, we aim to reduce the number of iterations by enhancing the preconditioner with randomised methods.
+Solving a multi-dimensional PDE by means of a Discontinuous Galerkin method in a higher order solution space requires the solution of large linear systems during time integration. When storing the semi-discrete system, communication dominates the computational costs such that matrix-free implementations~\cite{kronbichler2019fast} often turn out to be more efficient on modern architectures. In order to efficiently integrate implicit time integration into this framework, we need matrix-free preconditioners such as the tensor-product preconditioners of \cite{diosady2017tensor} and \cite{pazner2018approximate}. In the first part of the project, we implemented a matrix-based DG method for two-dimensional linear advection with upwind flux and verified the efficiency of Pazner's preconditioner. Next, we aim to reduce the number of iterations by enhancing the preconditioner with randomised methods.
 \end{abstract}
 
-\section{Introduction To Matrix-Free Tensor-Product Preconditioning}
-In the first part of a project, we derived and implemented a 2D Discontinuous Galerkin scheme for the linear advection equation, giving rise to an element-wise system of the form
+\section*{Introduction To Matrix-Free Tensor-Product Preconditioning}
+In the first part of the project, we derived and implemented a 2D Discontinuous Galerkin scheme for the linear advection equation
+\begin{equation}
+\label{eq:advection}
+\begin{aligned}
+&\partial_t u(x, t) + a(x,t) \cdot \nabla u(x,t) = 0 \quad \forall x \in [0,1]^2, \quad 0 \leq t \leq T
+\\
+&u(x, 0) = u_0(x) \quad \forall x \in [0,1]^2
+\\
+&u(x, t) = u_{\textnormal{in}}(x) \quad \forall x \in \partial [0, 1]^2,
+\end{aligned}
+\end{equation}
+giving rise to an element-wise system of the form
 \begin{align}
 \frac{dU(t)}{dt} = M^{-1} [(B - G) U - G_{\textnormal{bound}}].
 \end{align}
 
-When discretized with hexahedral elements, the involved matrices have tensor-product form. Specifically, let $x_i$ denote quadrature points, $w_i$ quadrature weights, $\phi_j$ 1D basis functions and $T$ the reference mapping. We introduce the 1D operators
+For the time discretization, we compared explicit and SDIRK implicit schemes. The latter give rise to element-wise linear systems of the form $A x = b$ with
 \begin{align}
-&G_{i,j} = \phi_j(x_i), \quad D_{i,j} = D \phi_j(x_i)
-\\
-&W_{i, i} = w_i, \quad E_{L,j} = \phi_j(-1), \quad E_{R, j} = \phi_j(1) 
-\\
-&J_T = \det(T(\cdot)), \quad \Lambda_{i,i} = \hat{au}(x_i).
+A = M - h a_{j,j} (G - B).
 \end{align}
 
-With this notation at hand, we can express the DG matrices in cases with constant velocity 1 as
+Traditionally, block-Jacobi preconditioners are used with a block-wise ILU or Gauss--Seidel preconditioner, but they require more than $\mathcal{O}(p^{d+1})$, which is the efficiency of matrix-free vector evaluations of the linear operator. \\
+
+Thus, we consider preconditioners that exploit tensor-product structure, the first one being \cite{pazner2018approximate}. Using a Lanczos SVD on a reshuffled operator, we can compute 
 \begin{align}
-&M = ((G^\top W) \otimes (G^\top W)  \otimes (G^\top W)) J_T (G \otimes ... \otimes G)
-\\
-&B = ((G^\top W) \otimes (G^\top W)  \otimes (G^\top W)) [(D \otimes G \otimes G) + (G \otimes D \otimes G) + (G \otimes G \otimes D)]
-\\
-&G_{\textnormal{2D face}} = (E_R \otimes G \otimes G)^\top (I \otimes W \otimes W) \Lambda (E_R \otimes G \otimes G).
+A \approx \sum_{k=1}^r A_k \otimes B_k \otimes C_k
 \end{align}
+in $\mathcal{O}(p^{d+1})$ time. For $r = 1$, the inversion is straightforward and for $r = 2$, it is efficiently found solving a Sylvester system. However, $r \leq 2$ might be inaccurate. While KSVD rank might be low, it still induces a full-rank matrix. Note that this approach is agnostic of the PDE and always finds the best $r$ axes for the KSVD approximation. We call the preconditioner run with rank $r$ ``Pazner-r''. \\
 
-For the time discretization, we compared explicit and SDIRK implicit schemes. The latter give rise to element-wise linear systems of the form $A_e x = b$ with
-\begin{align}
-A_e = M_e - h a_{j,j} (G - B).
-\end{align}
+Our numerical experiments show that the algorithm exhibits a large reduction in the number of iterations of the iterative linear solvers, i.e. block-Krylov methods, see table \ref{tab:iterations}. \\
 
-We applied the tensor product preconditioners of \citep{diosady2017tensor} and \cite{pazner2018approximate}, which exhibit a large reduction in the number of iterations of the iterative linear solvers, i.e. block-Krylov methods. \\
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|cccc|cccc}
+\hline
+ & \multicolumn{4}{c|}{\textbf{With Preconditioner}} 
+ & \multicolumn{4}{c}{\textbf{Without Preconditioner}} \\
+\textbf{RK Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+1 & 19.00 & 19.00 & 11.00 & 9.00 
+  & 50.00 & 50.00 & 50.00 & 30.70 \\
+2 & 19.00 & 18.25 & 10.00 & 9.00 
+  & 50.00 & 50.00 & 45.15 & 25.13 \\
+3 & 19.00 & 19.00 & 11.00 & 9.03 
+  & 50.00 & 50.00 & 50.00 & 32.25 \\
+4 & 13.50 & 11.00 & 6.75 & 6.03 
+  & 37.50 & 37.50 & 20.68 & 12.23 \\
+\hline
+\end{tabular}
+\caption{Average number of GMRES iterations for RK methods with and without Pazner's preconditioner with respect to step sizes $h$ and stage numbers.}
+\label{tab:iterations}
+\end{table}
 
-Traditionally, ILU or Gauss--Seidel preconditioners were used, but they require more than $\mathcal{O}(p^{d+1})$, which is the efficiency of matrix-free vector evaluations of the linear operator. \\
+The main competitor are the FDM and ADI schemes of Diosady~\citep{diosady2017tensor} that do depend on the respective PDE. \\
 
-Diosady~\citep{diosady2017tensor} suggest two approaches that exploits the tensor-product structure of the operator, the first one being the ADI scheme. \cite{diosady2017tensor} reduces the linear system to a matrix of the form 
+For scalar advection-diffusion, we may write 
 \begin{align*}
-.
+A = (D_1 \otimes I \otimes I \otimes I) + (I \otimes D_2 \otimes I \otimes I) + (I \otimes I \otimes D_3 \otimes) + (I \otimes I \otimes I \otimes D_0)
+\end{align*}
+with $D_0$ refering to the temporal direction, see \cite[Eq. 19]{diosady2017tensor}. Following an alternating least squares approach, we approximately find an inverse by solving one-dimensional problems in each coordinate direction
+\begin{align*}
+A^{-1} \approx &(I \otimes I \otimes I \otimes D_0 + I)^{-1} (I \otimes I \otimes D_3 + I \otimes I)^{-1} 
+\\
+&(I \otimes D_2 + I \otimes I \otimes I)^{-1} (D_1 + I \otimes I \otimes \otimes I)^{-1}.
 \end{align*}
 
-Running one iteration of alternating least squares, we arrive at the approximate inverse
+Alternatively, Diosady~\cite{diosady2017tensor} suggests the FDM preconditioner. The DG system might be rewritten as 
 \begin{align*}
-.
+A = &(X_1 \otimes X_2 \otimes X_3 \otimes X_0) ( (\Lambda_1 \otimes I \otimes I \otimes I) + (I \otimes \Lambda_2 \otimes I \otimes) 
+\\
+&+ (I \otimes I \otimes \Lambda_3 \otimes) + (I \otimes I \otimes I \otimes \Lambda_0) ) (X_1 \otimes X_2 \otimes X_3 \otimes X_0)^{-1}
+\end{align*}
+for $D_i = X_i \Lambda_i X_i^{-1}$ The inversion is then easily determined as 
+\begin{align*}
+A^{-1} = &(X_1 \otimes X_2 \otimes X_3 \otimes X_0) ( (\Lambda_1 \otimes I \otimes I \otimes I) + (I \otimes \Lambda_2 \otimes I \otimes) 
+\\
+&+ (I \otimes I \otimes \Lambda_3 \otimes) + (I \otimes I \otimes I \otimes \Lambda_0) )^{-1} (X_1 \otimes X_2 \otimes X_3 \otimes X_0)^{-1}
 \end{align*}
 
-While this approach is very fast, it is only a rough approximation that does not suffice to precondition complex behaviour well. \\
+The method's downsides are ill-conditioning of $X_i$ and strong structural assumptions. While the approach works naturally for Laplacians that can be written as $\Delta_{x,y} = D_x \otimes I + I \otimes D_y$, Navier--Stokes equations for example rely on cross-derivatives such as $D_x \otimes D_y \otimes I$. While there is an extension to compressible Navier--Stokes, see \cite[Sec. 5]{diosady2017tensor}, our experiments show that the number of iterations increases under the occurence of turbulences. \\
 
-Alternatively, Diosady~\cite{diosady2017tensor} suggests the FDM preconditioner. If we can write $D_i = X_i \Lambda_i X_i^{-1}$, the inversion is easily determined as 
-\begin{align*}
-.
-\end{align*}
+In the next section, we examine how randomised strategies can improve our preconditioners.
 
-Once again we benefit from high efficiency at the expense of ill-conditioning of $X_i$ and strong structural assumptions. While the approach works naturally for Laplacians that can be written as $\Delta_{x,y} = D_x \otimes I + I \otimes D_y$, Navier--Stokes equations rely on cross-derivatives such as $D_x \otimes D_y \otimes I$. \\
-
-Here enters Pazner's~\cite{pazner2018approximate} preconditioner. Using a Lanczos SVD on a reshuffled operator, we can compute 
-\begin{align}
-A_e \approx \sum_{k=1}^r A_k \otimes B_k \otimes C_k
-\end{align}
-in $\mathcal{O}(p^{d+1})$ time. For $r = 1$, the inversion is straightforward and for $r = 2$, it is efficiently found solving a Sylvester system. However, $r \leq 2$ might be inaccurate. While KSVD rank might be low, it still induces a full-rank matrix. This is crucial because the dynamics of fluid flow are full-rank, whereas the turbulences are low-rank phenomenon.
-
-\section{Strategies For Randomized Matrix-Free Tensor-Product Preconditioning}
-We present the following preliminary ideas to enhance preconditioning via randomized means. We quickly summarize:
+\section*{Strategies For Randomised Matrix-Free Tensor-Product Preconditioning}
+We present the following preliminary ideas to enhance preconditioning via randomised means. We quickly summarise:
 \begin{enumerate}
-\item \textbf{Blendenpik}: Our source of inspiration, unsuited for our problem.
+\item \textbf{Blendenpik~\cite{avron2010blendenpik}}: Our source of inspiration, unsuited for our problem.
 
-\item \textbf{Randomized GMRES}: Randomized iterative solvers, but not preconditioners.
+\item \textbf{Randomised GMRES~\cite{nakatsukasa2024fast}~\cite{balabanov2022randomized}}: Randomised iterative solvers, but not preconditioners.
 
-\item \textbf{RSVD for KSVD}: State-of-the-art implementation for Pazner,
+\item \textbf{RSVD for KSVD}: State-of-the-art implementation for Pazner by running the KSVD with the more parallel RSVD~\cite{T23} instead of the sequential Lanczos SVD~\cite[Alg. 2]{pazner2018approximate}. As \cite{T23} notes, the algorithms are closely related. 
 
 \item \textbf{Tensor Formats for higher ranks}: The KSVD is cheaply transformed to other tensor formats, which allow cheap application of the inverse.
 
-\item \textbf{Woodbury}: Combine cheap full-rank base preconditioner (ADI, FDM, Pazner) for the fluid flow with low-rank preconditioner for turbulences.
+\item \textbf{Woodbury~\cite{akgun2001fast}}: Combine cheap full-rank base preconditioner (ADI, FDM, Pazner) with low-rank update.
 \end{enumerate}
 
 \subsubsection{Blendenpik}
-While unhelpful for our means, we draw inspiration from the Blendenpik algorithm. Choosing $R$ from $\Psi^\top A_e = QR$ as a preconditioner, it was one of the first randomized algorithms outperforming deterministic counterparts for least squares approximation. Problematically however, this ansatz does not address the full-rank nature of fluid dynamics nor the tensor-product structure of the problem.
+While unhelpful for our means, we draw inspiration from the Blendenpik~\cite{avron2010blendenpik} algorithm. Choosing $R$ from $\Psi^\top A_e = QR$ as a preconditioner, it was one of the first randomised algorithms outperforming deterministic counterparts for least squares approximation. Problematically however, this ansatz does not address the full-rank nature of fluid dynamics nor the tensor-product structure of the problem.
 
 \subsubsection{Randomized GMRES}
-Suggested by Nakatsukasa and Tropp~\cite{}, the randomized variant promises significant runtime advantages at near-optimal accuracy by changing the iterative solver.
+Suggested by \cite{nakatsukasa2024fast} and \cite{balabanov2022randomized}, the randomised variant of GMRES promises significant runtime advantages at near-optimal accuracy by changing the iterative solver. Furkan Akin writes a bachelor thesis on this topic under supervision of Katharina Kormann.
 
 \subsubsection{Efficient KSVD}
-The Lanczos SVD is no longer state of the art for small-rank truncated SVDs, but the randomized SVD~\cite{} is, such that we should include this algorithm. For rank $r$, it requires $2r$ matrix-vector products, Lanczos requires $2J$, where $J \geq r$ is the number of iterations.
+The Lanczos SVD is no longer state of the art for small-rank truncated SVDs, but the randomised SVD~\cite{T23} is, such that we should include this algorithm. For rank $r$, it requires $2r$ matrix-vector products, Lanczos requires $2J$, where $J \geq r$ is the number of iterations. Furthermore, Lanczos requires sequential matrix-vector products whereas the RSVD relies on optimised matrix-matrix products.
 
 \subsubsection{The Inversion Of Higher Ranks}
-The KSVD can be cheaply transformed to a formulation similar to the Tucker format. We derive it in the following but realize it suffers from the curse of dimensionality. \\
+The KSVD can be cheaply transformed to a formulation similar to the Tucker format. We derive it in the following but realise it suffers from the curse of dimensionality. \\
 
-Start with $E = \sum_{k=1}^r A_k \otimes B_k \otimes C_k$. $E$ is $N \times N$ with $N = p^d$ and $A_k, B_k, C_k$ are $p \times p$. We sketch cheaply with $\Omega = \Omega_x \otimes \Omega_y \otimes \Omega_z$ with $\Omega$ $N \times k^3$ and $\Omega_x, \Omega_y, \Omega_z$ $p \times k$ such that in $\mathcal{O}(dr k p^2)$ time we arrive at the factorization
+Start with $E = \sum_{k=1}^r A_k \otimes B_k \otimes C_k$. $E$ is $N \times N$ with $N = p^d$ and $A_k, B_k, C_k$ are $p \times p$. We sketch cheaply with $\Omega = \Omega_x \otimes \Omega_y \otimes \Omega_z$ with $\Omega$ of the form $N \times k^3$ and $\Omega_x, \Omega_y, \Omega_z$ of shape $p \times k$ such that in $\mathcal{O}(dr k p^2)$ time we arrive at the factorization
 \begin{align}
 E \Omega = \sum_{k=1}^r (A_k \Omega_x) \otimes (B_k \Omega_y) \otimes (C_k \Omega_z).
 \end{align}
@@ -147,227 +175,32 @@ We can finally compute the factorization of the $k^d \times k^d$ core in $\mathc
 C = (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) E (Q_x \otimes Q_y \otimes Q_z) = \sum_{k=1}^r (Q_x^\top A_k Q_x) \otimes (Q_y^\top B_k Q_y) \otimes (Q_z^\top C_k Q_z).
 \end{align*}
 
-Once we have our Tucker format $E^{-1} \approx (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) C^{-1} (Q_x \otimes Q_y \otimes Q_z)$ is applied in $\mathcal{O}(p^{d+1} + k^{3d})$ time, which is too expensive. For higher ranks, inversion seems to remain a problem.
+Once we have our Tucker format $E^{-1} \approx (Q_x^\top \otimes Q_y^\top \otimes Q_z^\top) C^{-1} (Q_x \otimes Q_y \otimes Q_z)$ is applied in $\mathcal{O}(p^{d+1} + k^{3d})$ time, which is too expensive. \\
+
+Alternatively, we could solve an optimisation problem 
+\begin{align*}
+\arg \min_x \|\Psi^\top E x - \Psi^\top b \|,
+\end{align*} 
+but this requires running an iterative solver in any application of the preconditioner and seems impractical. For higher ranks, inversion seems to remain a problem.
 
 \subsubsection{Woodbury}
-Naturally, $A_e = P_1 + E$ can be decomposed by choosing the base preconditioner $P_1$ as Pazner / FDM / ADI. We can apply $E$ in $\mathcal{O}(p^{d+1})$ time. Writing $P \approx P_1 + U V^\top$ with $U, V$ $N \times r$, Woodbury's formula~\cite{} gives 
+Naturally, $A = P_1 + E$ can be decomposed by choosing the base preconditioner $P_1$ as Pazner / FDM / ADI. We can apply $E$ in $\mathcal{O}(p^{d+1})$ time. Writing $P \approx P_1 + U V^\top$ with $U, V$ of form $N \times r$, Woodbury's formula~\cite{akgun2001fast} gives 
 \begin{align*}
 z = P^{-1} v \approx P_1^{-1} v - P_1^{-1} U (I_k + V^\top P_1^{-1} U)^{-1} V^\top P_1^{-1} v.
 \end{align*}
 
-Computing the factorization $E \approx UV^\top$ costs $\mathcal{O}(4k d p^{d+1})$ using the randomized SVD. \\
+We split the computational costs in precomputation costs that only occur once when initialising the preconditioner and application costs that occur during each iteration. \\
 
-For the evaluation, see that applying the base preconditioner $w = P_1^{-1} v$ takes $\mathcal{O}(d p^{d+1})$ time and calculating the dense product $x = V^\top w$ takes $\mathcal{O}(k p^d)$ time. The core solve $(I_k + V^\top P_1^{-1} U)^{-1} x$ takes $\mathcal{O}(k^2)$ time, where the precomputation of the core costs $\mathcal{O}(k d p^{d+1})$. Applying $P_1^{-1}U$ (forming it is part of the prior precomputation) costs $\mathcal{O}(k^2 p^d)$ time. We conclude that the extra costs of the Woodbury update is $\mathcal{O}((4k + 2k + 1)d p^{d+1})$ for precomputation, whereas the update is free in the sense that it is lower-order. We expect massive computational advantages.
+For the former, computing the factorization $E \approx UV^\top$ costs $\mathcal{O}(4k d p^{d+1})$ using the randomised SVD. See that applying the base preconditioner $w = P_1^{-1} v$ takes $\mathcal{O}(d p^{d+1})$ time and precalculating the dense product $x = V^\top w$ takes $\mathcal{O}(k p^d)$ time. Precomputing the core inverse costs $\mathcal{O}(k d p^{d+1})$. Thus precomputation costs $\mathcal{O}(5kd p^{d+1})$.\\
 
-\section{Randomized Woodbury Preconditioning}
-We implement the Woodbury approach and apply it to the exact same problem as in the first part of the project, linear advection with constant velocity. It gets the same iteration numbers as Pazner's preconditioner. This means two things: it works and the problem is too simple such that Pazner models the underlying geometry remarkably well. It is not exact because we move in a block-Jacobi setting, but it is exact per block. \\
+For the application costs, applying $P^{-1}$ costs $\mathcal{O}(d p^{d+1})$. The core solve $(I_k + V^\top P_1^{-1} U)^{-1} x$ takes $\mathcal{O}(k^2)$ time, applying $P_1^{-1}U$ costs $\mathcal{O}(k^2 p^d)$ time and subtraction is of lower order. The cost per application is thus $\mathcal{O}(d p^{d+1})$ which is the same as for the original preconditioner. \\
 
-This is why we increase the complexity of the problem. Instead of using a constant velocity, we use a rotating vortex velocity field $v(x, y) = (-y, x)$. For $r = 2$ we have the same picture due to the fact that the continuous operator is a rank-$2$ Kronecker product, i.e.
-\begin{align}
--y \partial_x u + x \partial_y u = D_x \otimes M_y(-y) + M_x(x) D_y.
-\end{align}
+We conclude that the extra costs of the Woodbury update is $\mathcal{O}(4kd p^{d+1})$ for precomputation, whereas the application costs the same. We therefore require the reduction in the number of iterations to be larger than $4k$ in order to gain runtime advantages.
 
-We expect this to no longer be a case in 3D. Alternatively, we can use a worse preconditioner. Either Pazner with $r = 1$ or simply the matrix diagonal. The latter might be too bad to capture the full-rank fluid dynamics and thus requires massive rank in our Woodbury improvement, which is likely too costly. The first option is thus preferred and the results are promising. The higher the rank of our Woodbury patch, the lower the number of iterations. Ranks $k = 8-16$ even deliver as few iterations as the $r = 2$ Pazner preconditioner. This is remarkable because it suggests that in 3D, combining $r = 2$ and moderately high $k$ can reduce the number of iterations to $r = 3$ Pazner preconditioning, which is infeasible in practice without losing $\mathcal{O}(p^{d+1})$. \\
+\section*{Randomised Woodbury Preconditioning}
+We implement the Woodbury approach and apply it to the 2D advection equation \ref{eq:advection} with constant velocity $a(x, t) = (1, 1)$ and initial condition $u_0(x) = \sin(2 \pi x_1) \sin(2 \pi x_2)$ as we did in the first part of the project. In this work, we always consider periodic boundary conditions. The Woodbury preconditioners get the same iteration numbers as Pazner2 for all $k$. This means two things: the Woodbury update works and the problem is too simple such that Pazner2 models the underlying geometry remarkably well. It is not exact because we move in a block-Jacobi setting, but it is exact per block. We can now either weaken the preconditioner or increase the complexity of the problem. \\
 
-\begin{table}[h!]
-\centering
-\begin{tabular}{c|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Pazner ($r=1$)}} 
- & \multicolumn{4}{c}{\textbf{Pazner ($r=2$)}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 61.00 & 38.00 & 15.20 & 11.75 
-  & 19.00 & 15.00 & 9.60 & 8.10 \\
-2 & 53.00 & 33.50 & 14.00 & 10.78 
-  & 18.50 & 13.00 & 9.00 & 8.00 \\
-3 & 64.67 & 40.00 & 15.93 & 12.00 
-  & 20.00 & 16.00 & 10.00 & 8.45 \\
-4 & 27.75 & 17.25 & 8.25 & 6.68 
-  & 10.50 & 8.25 & 6.00 & 5.74 \\
-\hline
-\end{tabular}
-\caption{Average number of GMRES iterations for RK methods using Pazner's preconditioner with rank $r=1$ versus rank $r=2$ with respect to step sizes $h$ and stage numbers.}
-\label{tab:pazner_comparison}
-\end{table}
-
-\begin{table}[h!]
-\centering
-\begin{tabular}{c|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Diagonal Preconditioner}} 
- & \multicolumn{4}{c}{\textbf{Without Preconditioner}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 150.00 & 150.00 & 39.00 & 23.00 
-  & 150.00 & 150.00 & 29.30 & 14.65 \\
-2 & 150.00 & 136.25 & 32.40 & 19.00 
-  & 150.00 & 136.75 & 23.70 & 12.43 \\
-3 & 150.00 & 150.00 & 41.70 & 24.00 
-  & 150.00 & 150.00 & 32.50 & 15.65 \\
-4 & 108.25 & 59.00  & 15.98 & 9.75  
-  & 112.50 & 55.13  & 9.95  & 6.58  \\
-\hline
-\end{tabular}
-\caption{Average number of GMRES iterations for RK methods using the Diagonal preconditioner compared to a plain implicit solver without preconditioning. Notably, for smaller step sizes ($h \le 0.01$), the diagonal preconditioner degrades the spectrum and increases iteration counts compared to the un-preconditioned system. Values of 150.00 indicate GMRES stalled at the maximum iteration limit.}
-\label{tab:diagonal_vs_none}
-\end{table}
-
-\begin{table}[h!]
-\centering
-\resizebox{\textwidth}{!}{
-\begin{tabular}{c|cccc|cccc|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
- & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 55.00 & 35.50 & 15.00 & 12.00 
-  & 44.00 & 31.50 & 14.00 & 11.00 
-  & 30.00 & 22.00 & 12.00 & 10.00 
-  & 19.00 & 15.00 & 9.60  & 8.00 \\
-2 & 45.00 & 31.00 & 14.00 & 11.00 
-  & 38.00 & 27.50 & 13.00 & 10.43 
-  & 27.00 & 20.25 & 11.20 & 9.00 
-  & 18.50 & 13.00 & 9.00  & 8.00 \\
-3 & 55.33 & 36.00 & 15.87 & 12.00 
-  & 49.67 & 32.17 & 15.00 & 11.17 
-  & 32.67 & 22.00 & 12.00 & 10.00 
-  & 19.00 & 16.00 & 10.00 & 8.27 \\
-4 & 24.00 & 16.50 & 8.25  & 6.75 
-  & 21.00 & 15.75 & 8.25  & 6.75 
-  & 16.50 & 11.38 & 7.50  & 6.00 
-  & 10.50 & 8.25  & 6.00  & 5.56 \\
-\hline
-\end{tabular}
-}
-\caption{Average number of GMRES iterations for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k \in \{2, 4, 8, 16\}$. Notice the convergence to the exact $r=2$ iteration baseline at $k=16$.}
-\label{tab:woodbury_k_comparison}
-\end{table}
-
-\begin{table}[h!]
-\centering
-\resizebox{\textwidth}{!}{
-\begin{tabular}{c|cccc|cccc|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
- & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 2.58 & 3.00 & 7.81  & 13.70 
-  & 2.81 & 3.57 & 8.98  & 15.92 
-  & 2.42 & 3.06 & 9.04  & 16.27 
-  & 1.98 & 2.25 & 7.07  & 12.33 \\
-2 & 3.44 & 4.94 & 15.19 & 31.54 
-  & 3.55 & 5.27 & 16.12 & 30.50 
-  & 3.28 & 4.82 & 15.30 & 27.84 
-  & 2.41 & 3.58 & 12.64 & 23.78 \\
-3 & 7.42 & 10.85 & 28.00 & 44.13 
-  & 5.88 & 9.20 & 26.39 & 45.14 
-  & 4.47 & 6.77 & 22.72 & 40.45 
-  & 3.25 & 5.37 & 19.67 & 35.93 \\
-4 & 4.29 & 6.77 & 21.83 & 38.48 
-  & 4.21 & 6.30 & 20.01 & 35.01 
-  & 3.15 & 4.64 & 15.68 & 28.17 
-  & 2.73 & 4.05 & 14.61 & 28.07 \\
-\hline
-\end{tabular}
-}
-\caption{Total runtime (in seconds) for RK methods using Pazner's $r=1$ base preconditioner augmented with a randomized Woodbury update of sketch ranks $k$. Notice that increasing the rank to $k=16$ yields the fastest overall runtimes due to the drastic reduction in GMRES iterations.}
-\label{tab:woodbury_runtime}
-\end{table}
-
-\begin{table}[h!]
-\centering
-\begin{tabular}{c|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Pazner ($r=1$)}} 
- & \multicolumn{4}{c}{\textbf{Pazner ($r=2$)}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 2.32 & 3.94 & 7.66  & 13.11 
-  & 2.14 & 2.61 & 8.31  & 14.95 \\
-2 & 3.48 & 4.80 & 13.73 & 34.26 
-  & 2.90 & 4.14 & 15.57 & 28.97 \\
-3 & 5.66 & 7.47 & 21.79 & 39.04 
-  & 4.25 & 6.91 & 24.82 & 45.31 \\
-4 & 3.75 & 5.33 & 15.37 & 28.08 
-  & 3.28 & 5.15 & 19.31 & 36.47 \\
-\hline
-\end{tabular}
-\caption{Total runtime (in seconds) for RK methods using Pazner's base preconditioner with rank $r=1$ versus rank $r=2$.}
-\label{tab:pazner_runtime_comparison}
-\end{table}
-
-\begin{table}[h!]
-\centering
-\resizebox{\textwidth}{!}{
-\begin{tabular}{c|cccc|cccc|cccc|cccc}
-\hline
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
- & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
- & \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
-\textbf{RK Stages} 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 
-& 0.1 & 0.05 & 0.01 & 0.005 \\
-\hline
-1 & 150.00 & 145.50 & 33.70 & 21.00 
-  & 150.00 & 133.00 & 29.00 & 19.00 
-  & 149.00 & 75.50  & 20.00 & 15.00 
-  & 19.00  & 15.00  & 9.60  & 8.00  \\
-2 & 150.00 & 107.00 & 29.00 & 19.03 
-  & 150.00 & 92.50  & 24.65 & 17.00 
-  & 115.50 & 51.00  & 18.10 & 13.00 
-  & 18.50  & 13.00  & 9.00  & 8.00  \\
-3 & 150.00 & 150.00 & 35.03 & 21.78 
-  & 150.00 & 137.67 & 30.00 & 19.17 
-  & 138.67 & 69.83  & 21.07 & 15.00 
-  & 19.00  & 16.00  & 10.00 & 8.27  \\
-4 & 89.25  & 45.38  & 14.93 & 10.46 
-  & 88.25  & 39.00  & 12.75 & 9.45  
-  & 48.00  & 25.50  & 10.50 & 8.25  
-  & 10.50  & 8.25   & 6.00  & 5.56  \\
-\hline
-\end{tabular}
-}
-\caption{Average number of GMRES iterations for RK methods using a Diagonal base preconditioner augmented with a randomized Woodbury update. Notice that at $k=16$, the randomized update completely maps the missing cross-derivative physics, rescuing the solver from stagnation and achieving optimal iteration counts.}
-\label{tab:diagonal_woodbury_comparison}
-\end{table}
-
-\textbf{Enter nice graphics and present to Martin.}
-
-Next, we can do the following:
-\begin{enumerate}
-\item Run for higher-order basis functions.
-\item Add more complicated initial value, see advection miniapp.
-\item Consider different base preconditioners: FDM, ADI, matrix diagonal.
-\item Extend to 3D.
-\item Optimize code in deal.II.
-\item Add diffusion terms, Navier--Stokes.
-\end{enumerate}
-
-We do the same experiment for constant advection. Maximum number of iterations is 150. Pazner1 with Woodbury is the basis. Woodbury does not change the results of Pazner2 (up to minor pertubrations +-2). We choose Nx = Ny = 8. We choose J = 10 for the Lanczos iteration, but note that forming the KSVD has the same runtime for all methods considered (independent of J). However, application of the r = 2 Pazner method is much more expensive than for r = 1. We choose final time T = 0.1 because my PC is slow.
+We follow the first idea and do the same experiment but choose Pazner1 as a base preconditioner. Maximum number of iterations is 150. Pazner1 with Woodbury is the basis. We choose Nx = Ny = 8. We choose J = 10 for the Lanczos iteration, but note that forming the KSVD has the same runtime for all methods considered. However, application of the r = 2 Pazner method is much more expensive than for r = 1. We choose final time T = 0.1 because the complexity of linear advection with constant velocity stays the same over time. \\
 
 \begin{table}[h!]
 \centering
@@ -468,6 +301,269 @@ We do the same experiment for constant advection. Maximum number of iterations i
 \caption{Total runtime (in seconds) per RK step for varying polynomial degrees $p$. The values illustrate the computational efficiency of randomized Woodbury updates as local cell matrix dimensionality increases.}
 \label{tab:stacked_woodbury_runtimes}
 \end{table}
+
+We list the following takeaways:
+\begin{enumerate}
+\item Smaller time steps strictly reduce the number of GMRES iterations. However, they increase the global runtime as the number of steps increases.
+
+\item The size of the DG system grows proportional to $(p+1)^2$. We have an according increase in runtime and the number of iterations.
+
+\item Except for small perturbations at $k = 2$, we see in table \ref{tab:stacked_woodbury_iterations} that the Woodbury update always decreases the number of iterations needed and converges against the optimal Pazner2 solution for large $k$. At $p = 3$, $k = 16$ simply inverts the entire system and thus yields great results.
+
+\item While larger $k$ decreases the number of iterations, it only consistently reduces runtime for small polynomial degrees $p = 3, 4$. For large degree $p = 5, 6$, Pazner2 performs best and Woodbury updates only sometimes outperform Pazner1.
+\end{enumerate}
+
+We get the same results for the rotating vortex velocity
+\begin{align*}
+a(x, t) = (-x_2, x_1)
+\end{align*}
+with initial condition $u_0(x) = \exp\left( -\frac{(x_1 - 0.25)^2 + (x_2 - 0.25)^2}{2(0.08)^2} \right)$. Snapshots of the solution are visualised in figure \ref{}. \\
+
+Next, we run the same experiment for the spiral velocity
+\begin{align*}
+    a_1(x, t) &= 2 \cos\left( \frac{\pi t}{T} \right) \Big( \sin(2\pi x_2) \sin^2(\pi x_1) + 0.2 \sin(2\pi(x_1 + 0.2)) \cos(2\pi(x_2 + 0.3)) \Big) \\
+    a_2(x, t) &= -2 \cos\left( \frac{\pi t}{T} \right) \Big( \sin(2\pi x_1) \sin^2(\pi x_2) + 0.2 \cos(2\pi(x_1 + 0.2)) \sin(2\pi(x_2 + 0.3)) \Big)
+\end{align*}
+with intial condition
+\begin{align*}
+u_0(x) = \exp\left(-400 \left( (x_1 - 0.5)^2 + (x_2 - 0.75)^2 \right)\right) + \exp\left(-100 \left( (x_1 - 0.5)^2 + (x_2 - 0.25)^2 \right)\right).
+\end{align*}
+
+Note that the solution at final and initial time are the same such that we can compare to an exact solution in order to compute the error. This time, we choose T = 1.0 because otherwise the computed results are nonsense. See figure \ref{} for snapshots of the approximate solution at different times.
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cc|cccc|cccc|cccc|cccc|cccc|cccc}
+\hline
+& & \multicolumn{4}{c|}{\textbf{Woodbury $k=0$}}
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=16$}} 
+ & \multicolumn{4}{c}{\textbf{Pazner $r=2$}} \\
+\textbf{Deg.} & \textbf{Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+\hline
+\textbf{$p=3$} 
+& 1 & 114.20 & 94.90 & 23.88 & 15.52 & 112.30 & 94.35 & 23.45 & 15.18 & 105.90 & 89.90 & 23.28 & 15.11 & 98.20 & 85.95 & 23.40 & 15.06 & 93.90 & 83.50 & 23.09 & 15.07 & 96.40 & 86.00 & 23.60 & 15.21 \\
+& 2 & 105.40 & 82.95 & 20.36 & 13.68 & 103.00 & 83.98 & 20.09 & 13.47 & 95.85 & 80.60 & 19.87 & 13.41 & 91.30 & 76.93 & 19.74 & 13.45 & 86.65 & 74.55 & 19.53 & 13.37 & 90.05 & 77.30 & 20.01 & 13.46 \\
+& 3 & 114.00 & 94.85 & 24.98 & 16.01 & 111.40 & 93.48 & 24.68 & 16.04 & 101.17 & 89.62 & 24.49 & 15.77 & 93.60 & 84.60 & 24.37 & 15.72 & 89.57 & 81.58 & 24.17 & 15.60 & 92.97 & 84.68 & 24.81 & 15.78 \\
+& 4 & 69.25 & 36.55 & 10.77 & 7.86 & 69.05 & 36.40 & 10.80 & 7.79 & 65.85 & 36.31 & 10.66 & 7.78 & 64.18 & 35.68 & 10.60 & 7.76 & 61.93 & 35.46 & 10.54 & 7.77 & 63.90 & 36.50 & 10.57 & 7.70 \\
+\hline
+\textbf{$p=4$} 
+& 1 & 140.50 & 115.45 & 33.37 & 19.59 & 134.80 & 112.95 & 33.77 & 18.87 & 129.20 & 104.75 & 32.53 & 19.11 & 115.50 & 99.25 & 32.45 & 18.77 & 101.10 & 91.55 & 31.41 & 18.60 & 102.30 & 93.80 & 32.34 & 18.87 \\
+& 2 & 130.25 & 107.20 & 27.04 & 16.85 & 126.00 & 102.65 & 26.77 & 16.94 & 117.30 & 101.58 & 26.33 & 16.56 & 105.75 & 91.03 & 26.22 & 16.44 & 93.35 & 84.48 & 25.68 & 16.15 & 95.90 & 88.05 & 26.30 & 16.29 \\
+& 3 & 140.93 & 116.85 & 35.29 & 20.42 & 137.17 & 110.27 & 34.71 & 20.03 & 126.87 & 108.40 & 34.87 & 19.78 & 112.13 & 96.68 & 34.22 & 19.74 & 95.17 & 88.73 & 33.66 & 19.48 & 97.90 & 91.63 & 34.14 & 19.69 \\
+& 4 & 84.28 & 59.73 & 13.44 & 9.27 & 82.93 & 61.28 & 13.30 & 9.22 & 79.35 & 59.13 & 13.25 & 9.08 & 73.05 & 56.51 & 12.95 & 9.02 & 69.10 & 55.01 & 12.82 & 9.07 & 70.33 & 56.14 & 13.00 & 9.02 \\
+\hline
+\textbf{$p=5$} 
+& 1 & 150.00 & 139.65 & 47.38 & 24.50 & 150.00 & 137.50 & 47.55 & 23.80 & 150.00 & 129.55 & 45.93 & 24.09 & 134.70 & 116.25 & 44.89 & 23.59 & 116.20 & 101.30 & 44.37 & 23.08 & 106.60 & 98.25 & 44.44 & 23.31 \\
+& 2 & 150.00 & 128.35 & 36.62 & 20.70 & 149.40 & 129.38 & 36.57 & 20.23 & 146.85 & 117.63 & 35.22 & 20.09 & 127.80 & 104.95 & 35.27 & 19.77 & 105.25 & 95.30 & 34.11 & 19.54 & 98.10 & 93.18 & 34.72 & 19.70 \\
+& 3 & 150.00 & 140.82 & 50.93 & 25.71 & 150.00 & 146.13 & 51.04 & 25.28 & 150.00 & 129.15 & 50.74 & 25.06 & 137.07 & 113.20 & 48.50 & 24.96 & 111.83 & 100.47 & 47.54 & 24.68 & 100.40 & 95.92 & 47.26 & 24.52 \\
+& 4 & 99.75 & 77.31 & 16.62 & 10.70 & 102.43 & 78.40 & 16.69 & 10.51 & 93.80 & 73.76 & 16.29 & 10.63 & 83.35 & 70.60 & 16.10 & 10.53 & 76.60 & 65.21 & 15.83 & 10.39 & 74.08 & 64.86 & 15.89 & 10.36 \\
+\hline
+\textbf{$p=6$} 
+& 1 & 150.00 & 150.00 & 68.03 & 31.27 & 150.00 & 150.00 & 69.84 & 30.42 & 150.00 & 150.00 & 67.24 & 30.27 & 150.00 & 138.55 & 64.05 & 29.68 & 137.10 & 115.45 & 61.76 & 29.13 & 109.00 & 101.65 & 60.30 & 28.98 \\
+& 2 & 150.00 & 149.98 & 50.15 & 25.22 & 150.00 & 150.00 & 49.73 & 24.75 & 150.00 & 143.78 & 48.74 & 24.35 & 148.55 & 122.65 & 48.19 & 24.56 & 123.75 & 109.58 & 44.80 & 23.58 & 101.80 & 96.85 & 45.31 & 23.61 \\
+& 3 & 150.00 & 150.00 & 74.75 & 33.19 & 150.00 & 150.00 & 75.55 & 33.92 & 150.00 & 150.00 & 75.35 & 33.25 & 150.00 & 150.00 & 70.75 & 31.38 & 139.87 & 115.17 & 67.77 & 30.43 & 103.90 & 98.73 & 65.38 & 30.63 \\
+& 4 & 112.50 & 91.11 & 20.78 & 12.59 & 112.50 & 91.60 & 20.57 & 12.37 & 111.93 & 84.43 & 19.87 & 12.09 & 99.25 & 79.63 & 19.83 & 12.09 & 85.65 & 73.61 & 19.34 & 12.00 & 78.38 & 69.34 & 19.34 & 11.92 \\
+\hline
+\end{tabular}
+}
+\caption{Average GMRES iterations per RK step for varying polynomial degrees $p$. The values indicate the convergence behavior of the randomized Woodbury update across different ranks $k$ and time steps.}
+\label{tab:stacked_woodbury_iterations}
+\end{table}
+
+\vspace{2em}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cc|cccc|cccc|cccc|cccc|cccc|cccc}
+\hline
+& & \multicolumn{4}{c|}{\textbf{Woodbury $k=0$}}
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}} 
+ & \multicolumn{4}{c|}{\textbf{Woodbury $k=16$}} 
+ & \multicolumn{4}{c}{\textbf{Pazner $r=2$}} \\
+\textbf{Deg.} & \textbf{Stages} 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+\hline
+\textbf{$p=3$} 
+& 1 & 5.17 & 11.72 & 35.55 & 39.57 & 7.69 & 12.81 & 26.49 & 39.33 & 8.02 & 13.54 & 25.20 & 39.53 & 7.73 & 13.63 & 25.86 & 38.51 & 8.27 & 14.45 & 26.56 & 40.29 & 12.58 & 23.38 & 37.54 & 53.13 \\
+& 2 & 14.88 & 22.81 & 42.47 & 66.88 & 15.84 & 25.33 & 45.86 & 69.34 & 14.55 & 24.65 & 45.08 & 76.57 & 13.74 & 25.17 & 45.94 & 69.53 & 14.49 & 24.74 & 46.23 & 75.62 & 24.45 & 40.71 & 67.39 & 105.39 \\
+& 3 & 22.69 & 44.33 & 110.36 & 115.65 & 24.27 & 43.13 & 84.77 & 116.54 & 22.44 & 40.97 & 82.08 & 132.91 & 20.85 & 38.77 & 83.49 & 122.68 & 20.91 & 38.56 & 89.32 & 120.98 & 44.53 & 78.05 & 127.16 & 181.61 \\
+& 4 & 19.54 & 22.58 & 44.56 & 64.42 & 19.57 & 22.98 & 44.33 & 65.87 & 19.13 & 25.74 & 46.70 & 65.46 & 20.51 & 23.37 & 44.04 & 68.10 & 17.91 & 21.96 & 44.06 & 68.50 & 41.92 & 49.11 & 74.85 & 110.72 \\
+\hline
+\textbf{$p=4$} 
+& 1 & 7.65 & 19.85 & 36.65 & 59.83 & 10.59 & 17.71 & 41.94 & 67.11 & 10.35 & 16.92 & 41.08 & 67.05 & 9.67 & 16.49 & 40.87 & 67.33 & 10.19 & 15.42 & 41.65 & 64.76 & 15.55 & 27.82 & 62.56 & 90.48 \\
+& 2 & 15.28 & 26.57 & 65.62 & 116.64 & 19.60 & 31.78 & 75.21 & 129.55 & 18.06 & 33.45 & 75.71 & 129.36 & 17.18 & 29.42 & 75.57 & 131.42 & 16.05 & 28.56 & 75.31 & 123.24 & 28.79 & 52.85 & 107.91 & 169.84 \\
+& 3 & 24.01 & 41.57 & 110.15 & 180.02 & 29.98 & 53.60 & 124.33 & 198.60 & 28.53 & 50.09 & 125.23 & 201.87 & 26.51 & 45.92 & 124.90 & 205.25 & 23.19 & 43.73 & 125.03 & 202.12 & 43.69 & 79.50 & 190.58 & 273.89 \\
+& 4 & 18.52 & 28.59 & 67.38 & 127.64 & 23.36 & 36.84 & 76.57 & 132.49 & 22.89 & 35.99 & 77.10 & 125.60 & 22.16 & 36.03 & 78.72 & 126.19 & 21.21 & 34.93 & 73.75 & 125.30 & 39.84 & 66.14 & 111.12 & 185.32 \\
+\hline
+\textbf{$p=5$} 
+& 1 & 18.88 & 32.84 & 83.68 & 126.38 & 15.88 & 27.26 & 71.24 & 110.00 & 16.19 & 27.60 & 70.03 & 111.55 & 14.91 & 24.84 & 71.49 & 110.12 & 12.66 & 21.49 & 67.25 & 105.43 & 19.51 & 34.53 & 94.20 & 133.88 \\
+& 2 & 25.85 & 46.03 & 117.64 & 206.43 & 29.02 & 50.91 & 124.92 & 210.27 & 29.96 & 48.36 & 124.04 & 212.86 & 26.54 & 44.38 & 123.80 & 207.62 & 22.45 & 38.95 & 121.58 & 200.91 & 34.21 & 64.57 & 160.55 & 248.37 \\
+& 3 & 39.15 & 73.63 & 205.75 & 321.23 & 43.83 & 82.67 & 216.10 & 333.08 & 42.58 & 77.80 & 214.68 & 331.73 & 40.70 & 68.22 & 209.30 & 328.47 & 31.52 & 58.57 & 195.42 & 316.22 & 55.43 & 93.15 & 270.43 & 370.48 \\
+& 4 & 32.19 & 51.44 & 119.08 & 214.55 & 36.98 & 59.55 & 124.00 & 224.01 & 33.60 & 54.98 & 120.58 & 217.42 & 31.30 & 53.52 & 121.16 & 215.48 & 30.85 & 47.11 & 115.08 & 209.04 & 43.69 & 74.55 & 152.30 & 251.28 \\
+\hline
+\textbf{$p=6$} 
+& 1 & 21.84 & 37.32 & 106.56 & 176.65 & 25.30 & 39.16 & 137.85 & 200.25 & 22.67 & 41.37 & 132.74 & 192.20 & 26.56 & 41.01 & 123.57 & 195.71 & 22.44 & 37.86 & 126.01 & 193.63 & 23.39 & 48.40 & 178.27 & 262.35 \\
+& 2 & 33.44 & 62.44 & 190.57 & 332.03 & 49.07 & 85.55 & 240.83 & 387.08 & 42.02 & 77.31 & 221.50 & 375.02 & 43.24 & 78.11 & 219.86 & 363.02 & 41.34 & 71.20 & 233.09 & 393.72 & 56.00 & 99.61 & 311.04 & 463.53 \\
+& 3 & 52.54 & 102.72 & 356.93 & 538.85 & 64.28 & 121.09 & 408.99 & 597.90 & 62.13 & 116.84 & 397.88 & 594.23 & 60.20 & 118.68 & 383.96 & 572.40 & 62.35 & 107.48 & 423.42 & 610.58 & 76.28 & 145.12 & 552.46 & 735.96 \\
+& 4 & 45.44 & 75.71 & 192.71 & 345.99 & 52.51 & 92.91 & 209.49 & 370.68 & 54.83 & 90.34 & 210.93 & 381.43 & 51.19 & 83.97 & 252.93 & 397.42 & 42.35 & 70.90 & 197.87 & 367.13 & 63.38 & 111.92 & 254.48 & 424.17 \\
+\hline
+\end{tabular}
+}
+\caption{Average runtime (in seconds) per RK step for varying polynomial degrees $p$. The values indicate the runtime behavior of the randomized Woodbury update across different ranks $k$ and time steps.}
+\label{tab:stacked_woodbury_runtime}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cc|cccc|cccc|cccc|cccc|cccc}
+\hline
+& & \multicolumn{4}{c|}{\textbf{Woodbury $k=0$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}}
+& \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
+\textbf{Deg.} & \textbf{Stages}
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+\hline
+\textbf{$p=3$}
+& 1 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 2 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 3 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 4 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+\hline
+\textbf{$p=4$}
+& 1 & 102.30 & 93.80 & 32.34 & 18.87 & 101.90 & 92.40 & 31.80 & 18.80 & 101.40 & 91.55 & 31.33 & 18.73 & 99.60 & 90.25 & 31.42 & 18.47 & 98.80 & 89.55 & 31.36 & 18.46 \\
+& 2 & 95.90 & 88.05 & 26.30 & 16.29 & 93.65 & 86.75 & 26.09 & 16.19 & 93.30 & 85.40 & 25.77 & 16.31 & 91.30 & 84.18 & 25.50 & 16.16 & 90.70 & 83.18 & 25.39 & 16.10 \\
+& 3 & 97.90 & 91.63 & 34.14 & 19.69 & 96.37 & 90.10 & 33.87 & 19.52 & 95.20 & 89.38 & 33.51 & 19.52 & 93.83 & 87.93 & 33.19 & 19.32 & 93.27 & 87.12 & 33.17 & 19.23 \\
+& 4 & 70.33 & 56.14 & 13.00 & 9.02 & 69.33 & 55.35 & 12.94 & 9.02 & 69.03 & 54.59 & 12.83 & 9.02 & 68.18 & 54.24 & 12.84 & 8.96 & 67.45 & 53.90 & 12.83 & 8.99 \\
+\hline
+\textbf{$p=5$}
+& 1 & 106.60 & 98.25 & 44.44 & 23.31 & 105.80 & 97.70 & 43.57 & 23.25 & 104.10 & 95.30 & 43.02 & 23.04 & 102.70 & 93.65 & 42.64 & 22.72 & 101.80 & 91.30 & 42.17 & 22.67 \\
+& 2 & 98.10 & 93.18 & 34.72 & 19.70 & 97.65 & 91.35 & 33.93 & 19.60 & 95.55 & 90.63 & 33.42 & 19.52 & 92.95 & 88.70 & 33.12 & 19.24 & 91.60 & 87.18 & 32.99 & 19.24 \\
+& 3 & 100.40 & 95.92 & 47.26 & 24.52 & 99.57 & 94.05 & 46.39 & 24.33 & 97.20 & 92.82 & 45.89 & 24.22 & 95.77 & 90.92 & 45.42 & 23.83 & 94.73 & 89.10 & 45.25 & 23.63 \\
+& 4 & 74.08 & 64.86 & 15.89 & 10.36 & 73.88 & 63.94 & 15.77 & 10.39 & 71.83 & 63.16 & 15.67 & 10.34 & 70.70 & 62.38 & 15.59 & 10.32 & 69.40 & 61.24 & 15.41 & 10.28 \\
+\hline
+\end{tabular}
+}
+\caption{Average iterations per Runge-Kutta step for $p=4$ and $p=5$.}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cc|cccc|cccc|cccc|cccc|cccc}
+\hline
+& & \multicolumn{4}{c|}{\textbf{Woodbury $k=0$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=2$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=4$}}
+& \multicolumn{4}{c|}{\textbf{Woodbury $k=8$}}
+& \multicolumn{4}{c}{\textbf{Woodbury $k=16$}} \\
+\textbf{Deg.} & \textbf{Stages}
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005
+& 0.1 & 0.05 & 0.01 & 0.005 \\
+\hline
+\hline
+\textbf{$p=3$}
+& 1 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 2 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 3 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+& 4 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+\hline
+\textbf{$p=4$}
+& 1 & 16.30 & 29.89 & 60.74 & 84.09 & 18.69 & 33.10 & 76.05 & 108.66 & 21.87 & 35.05 & 80.00 & 124.02 & 16.61 & 29.72 & 66.17 & 90.93 & 16.15 & 28.04 & 62.71 & 88.70 \\
+& 2 & 27.36 & 50.59 & 111.07 & 188.33 & 32.15 & 70.20 & 138.28 & 204.02 & 37.94 & 59.70 & 130.59 & 204.78 & 29.73 & 55.01 & 113.81 & 173.33 & 28.05 & 52.15 & 106.66 & 165.65 \\
+& 3 & 61.70 & 91.06 & 240.82 & 367.82 & 55.53 & 102.12 & 243.63 & 350.14 & 53.95 & 87.30 & 202.19 & 292.92 & 44.76 & 83.78 & 199.45 & 283.70 & 42.64 & 79.23 & 193.42 & 270.07 \\
+& 4 & 55.02 & 87.62 & 151.14 & 221.89 & 47.18 & 67.38 & 117.56 & 210.99 & 42.76 & 69.59 & 116.06 & 190.09 & 41.90 & 69.02 & 119.77 & 180.59 & 40.02 & 66.36 & 110.85 & 189.22 \\
+\hline
+\textbf{$p=5$}
+& 1 & 19.51 & 34.53 & 94.20 & 133.88 & 20.79 & 38.08 & 104.03 & 146.98 & 20.97 & 36.89 & 99.95 & 150.28 & 20.82 & 39.30 & 106.14 & 140.36 & 21.71 & 36.31 & 93.10 & 132.85 \\
+& 2 & 34.21 & 64.57 & 160.55 & 248.37 & 39.17 & 72.08 & 179.44 & 276.31 & 36.84 & 69.68 & 171.41 & 297.94 & 35.43 & 77.90 & 197.69 & 291.39 & 33.40 & 62.67 & 182.34 & 268.83 \\
+& 3 & 55.43 & 93.15 & 270.43 & 370.48 & 58.22 & 103.20 & 344.44 & 431.80 & 57.33 & 106.28 & 311.83 & 435.23 & 59.01 & 108.26 & 356.87 & 409.37 & 56.84 & 104.78 & 313.79 & 444.78 \\
+& 4 & 43.69 & 74.55 & 152.30 & 251.28 & 51.42 & 89.98 & 170.74 & 280.90 & 50.81 & 89.44 & 171.05 & 278.39 & 46.76 & 82.79 & 156.86 & 284.93 & 53.72 & 91.92 & 171.56 & 268.44 \\
+\hline
+\end{tabular}
+}
+\caption{Total runtime (in seconds) comparing Woodbury ranks for $p=4$ and $p=5$.}
+\end{table}
+
+\section*{Summary And Outlook}
+Next, we can do the following:
+\begin{enumerate}
+\item Consider different base preconditioners: FDM, ADI, matrix diagonal.
+\item Extend to 3D.
+\item Optimize code in deal.II.
+\item Add diffusion terms, Navier--Stokes.
+\end{enumerate}
+
+\begin{figure}[h!]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.00-complicated.png}
+        \caption{$t = 0.00$}
+    \end{subfigure}
+    \hfill
+        \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.20-complicated.png}
+        \caption{$t = 0.20$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.40-complicated.png}
+        \caption{$t = 0.40$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.60-complicated.png}
+        \caption{$t = 0.60$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-0.80-complicated.png}
+        \caption{$t = 0.80$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/snapshot-1.00-complicated.png}
+        \caption{$t = 1.00$}
+    \end{subfigure}
+
+    \caption{Snapshots of the approximate solution at selected times. $Nx = Ny = 32$, $p = 4$, $h = 0.01$, implicit RK4.}
+    \label{fig:exact}    
+\end{figure}
 
 %%% Bibliography
 \bibliographystyle{alpha}

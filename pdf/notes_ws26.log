@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  27 MAR 2026 16:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (MiKTeX 22.12) (preloaded format=pdflatex 2023.1.2)  9 APR 2026 17:53
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -486,7 +486,11 @@ tex.def
 File: l3backend-pdftex.def 2022-10-26 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count312
 \l__pdf_internal_box=\box58
-) (notes_ws26.aux)
+) (notes_ws26.aux
+
+LaTeX Warning: Label `tab:stacked_woodbury_iterations' multiply defined.
+
+)
 \openout1 = `notes_ws26.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 34.
@@ -596,27 +600,25 @@ been already used, duplicate ignored
                    \relax 
 l.44 \end{abstract}
                     [1]
-Overfull \hbox (8.22984pt too wide) in paragraph at lines 46--46
-|[]\OT1/cmr/bx/n/17.28 Introduction To Matrix-Free Tensor-Product Pre-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 75--76
+Underfull \hbox (badness 10000) in paragraph at lines 68--69
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 77--78
+Underfull \hbox (badness 10000) in paragraph at lines 73--75
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 89--90
+Underfull \hbox (badness 10000) in paragraph at lines 76--77
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 96--97
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 102--103
 
  []
 
@@ -625,34 +627,73 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.97 
-      [1] [2]
+l.120 \end{align*}
+                   [1]
 Underfull \hbox (badness 10000) in paragraph at lines 128--129
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 142--144
+Overfull \hbox (15.08594pt too wide) in paragraph at lines 132--132
+|\OT1/cmr/bx/n/17.28 Strategies For Ran-domised Matrix-Free Tensor-Product
+ []
+
+[2]
+Underfull \hbox (badness 10000) in paragraph at lines 156--157
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 158--159
+Underfull \hbox (badness 10000) in paragraph at lines 170--172
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 163--164
+Underfull \hbox (badness 10000) in paragraph at lines 178--179
 
  []
 
 [3]
-Underfull \hbox (badness 10000) in paragraph at lines 170--171
+Underfull \hbox (badness 10000) in paragraph at lines 192--193
 
  []
 
 
-LaTeX Warning: `!h' float specifier changed to `!ht'.
+Underfull \hbox (badness 10000) in paragraph at lines 194--195
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 196--197
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 201--202
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 203--204
+
+ []
+
+[4]
+
+LaTeX Warning: Reference `' on page 5 undefined on input line 320.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 319--321
+
+ []
+
+[5]
+Overfull \hbox (12.32466pt too wide) detected at line 330
+[]
+ []
+
+
+LaTeX Warning: Reference `' on page 6 undefined on input line 332.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
@@ -660,38 +701,88 @@ LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
+[6]
+<../plots/snapshot-0.00-complicated.png, id=95, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-0.00-complicated.png Graphic file (type png)
+<use ../plots/snapshot-0.00-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-0.00-complicated.png  used on input 
+line 530.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+<../plots/snapshot-0.20-complicated.png, id=97, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-0.20-complicated.png Graphic file (type png)
+<use ../plots/snapshot-0.20-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-0.20-complicated.png  used on input 
+line 536.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+<../plots/snapshot-0.40-complicated.png, id=98, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-0.40-complicated.png Graphic file (type png)
+<use ../plots/snapshot-0.40-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-0.40-complicated.png  used on input 
+line 542.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+<../plots/snapshot-0.60-complicated.png, id=99, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-0.60-complicated.png Graphic file (type png)
+<use ../plots/snapshot-0.60-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-0.60-complicated.png  used on input 
+line 548.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+<../plots/snapshot-0.80-complicated.png, id=100, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-0.80-complicated.png Graphic file (type png)
+<use ../plots/snapshot-0.80-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-0.80-complicated.png  used on input 
+line 554.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+<../plots/snapshot-1.00-complicated.png, id=101, 410.2527pt x 364.4817pt>
+File: ../plots/snapshot-1.00-complicated.png Graphic file (type png)
+<use ../plots/snapshot-1.00-complicated.png>
+Package pdftex.def Info: ../plots/snapshot-1.00-complicated.png  used on input 
+line 560.
+(pdftex.def)             Requested size: 144.95303pt x 128.77736pt.
+
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-[4] [5] (notes_ws26.bbl [6]) [7
+(notes_ws26.bbl [7] [8 <../plots/snapshot-0.00-complicated.png> <../plots/snaps
+hot-0.20-complicated.png> <../plots/snapshot-0.40-complicated.png> <../plots/sn
+apshot-0.60-complicated.png> <../plots/snapshot-0.80-complicated.png> <../plots
+/snapshot-1.00-complicated.png>]) [9
 
 ] (notes_ws26.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: There were multiply-defined labels.
+
 Package rerunfilecheck Info: File `notes_ws26.out' has not changed.
-(rerunfilecheck)             Checksum: 92CB85B1A4EC0CE4FA17FE2DADA4CBF9;973.
+(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 13338 strings out of 476406
- 215102 string characters out of 2789568
- 1937787 words of memory out of 3000000
- 33474 multiletter control sequences out of 15000+600000
- 521696 words of font info for 68 fonts, out of 8000000 for 9000
+ 13395 strings out of 476406
+ 217093 string characters out of 2789568
+ 1977787 words of memory out of 3000000
+ 33523 multiletter control sequences out of 15000+600000
+ 523244 words of font info for 74 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,13n,77p,961b,522s stack positions out of 10000i,1000n,20000p,200000b,80000s
+ 72i,13n,77p,946b,557s stack positions out of 10000i,1000n,20000p,200000b,80000s
 <C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmbx12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmex10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/p
-ublic/amsfonts/cm/cmmi12.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/font
-s/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiK
-TeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/ruhrg/AppData/Local/Prog
-rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr17.pfb><C:/Users/ruhrg/AppData/Lo
-cal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/ruhrg/App
-Data/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/
-ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C
-:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmti
-12.pfb>
-Output written on notes_ws26.pdf (9 pages, 177861 bytes).
+ublic/amsfonts/cm/cmmi10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/font
+s/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/ruhrg/AppData/Local/Programs/Mi
+KTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/ruhrg/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/ruhrg/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/ruhrg/A
+ppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr17.pfb><C:/Users
+/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C
+:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8
+.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/
+cm/cmsy10.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1/public/
+amsfonts/cm/cmsy8.pfb><C:/Users/ruhrg/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/cm/cmti12.pfb>
+Output written on notes_ws26.pdf (11 pages, 2860383 bytes).
 PDF statistics:
- 159 PDF objects out of 1000 (max. 8388607)
+ 197 PDF objects out of 1000 (max. 8388607)
  45 named destinations out of 1000 (max. 500000)
- 25 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 31 words of extra memory for PDF output out of 10000 (max. 10000000)
 
